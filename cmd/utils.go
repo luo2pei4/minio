@@ -284,9 +284,14 @@ func getProfileData() (map[string][]byte, error) {
 }
 
 func setDefaultProfilerRates() {
-	runtime.MemProfileRate = 4096      // 512K -> 4K - Must be constant throughout application lifetime.
+	// 开启内存使用情况记录,间隔为4K
+	runtime.MemProfileRate = 4096 // 512K -> 4K - Must be constant throughout application lifetime.
+	// mutex主要用于查看锁争用导致的休眠时间，这有助于排查由于锁争用导致CPU利用率不足的问题
+	// 默认是关闭状态（0值），此处显示关闭。
 	runtime.SetMutexProfileFraction(0) // Disable until needed
-	runtime.SetBlockProfileRate(0)     // Disable until needed
+	// 除了锁的争用会导致阻塞之外，很多逻辑都会导致阻塞，比如网络请求超时、IO阻塞等
+	// 默认不开启阻塞分析，此处显示关闭
+	runtime.SetBlockProfileRate(0) // Disable until needed
 }
 
 // Starts a profiler returns nil if profiler is not enabled, caller needs to handle this.

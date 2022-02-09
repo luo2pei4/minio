@@ -397,6 +397,7 @@ func serverMain(ctx *cli.Context) {
 
 	go handleSignals()
 
+	// 设置性能概要分析相关参数
 	setDefaultProfilerRates()
 
 	// Initialize globalConsoleSys system
