@@ -401,12 +401,19 @@ func serverMain(ctx *cli.Context) {
 	setDefaultProfilerRates()
 
 	// Initialize globalConsoleSys system
+	// 注册全局的控制台日志子系统
+	// globalConsoleSys提供Subscribe方法用于订阅
+	// globalConsoleSys提供Send方法用于发送日志到控制
 	globalConsoleSys = NewConsoleLogger(GlobalContext)
 	logger.AddTarget(globalConsoleSys)
 
 	// Perform any self-tests
+	// 位保护(bitrot)算法自测函数，测试位保护算法可以计算出正确的校验和(checksums)
 	bitrotSelfTest()
+	// 纠删(erasure)算法自测函数，测试纠删算法可以计算出正确的纠删码(erasure codes)
 	erasureSelfTest()
+	// 压缩(compress)算法自测函数，测试压缩算法可以正确的Roundtrip
+	// minio在通过sdk进行网络调用时，要对request和response进行压缩处理
 	compressSelfTest()
 
 	// Handle all server command args.
