@@ -132,14 +132,19 @@ func newApp(name string) *cli.App {
 		Usage: "show help",
 	}
 
+	// 新建app实例
 	app := cli.NewApp()
+	// 设置APP名称，参数传入的第一个参数
 	app.Name = name
 	app.Author = "MinIO, Inc."
+	// 设置app版本号，ReleaseTag在build-constants.go中设置，在界面上会显示.
 	app.Version = ReleaseTag
 	app.Usage = "High Performance Object Storage"
 	app.Description = `Build high performance data infrastructure for machine learning, analytics and application data workloads with MinIO`
+	// 设置全局的flags
 	app.Flags = GlobalFlags
 	app.HideHelpCommand = true // Hide `help, h` command, we already have `minio --help`.
+	// 设置注册的命令
 	app.Commands = commands
 	app.CustomAppHelpTemplate = minioHelpTemplate
 	app.CommandNotFound = func(ctx *cli.Context, command string) {
@@ -162,9 +167,11 @@ func newApp(name string) *cli.App {
 // Main main for minio server.
 func Main(args []string) {
 	// Set the minio app name.
+	// 通过传入参数获取app的名字，只有server和gateway两种
 	appName := filepath.Base(args[0])
 
 	// Run the app - exit on error.
+	// 通过app的名字，创建新的app实例后再通过传入其他参数启动该app
 	if err := newApp(appName).Run(args); err != nil {
 		os.Exit(1)
 	}
