@@ -142,6 +142,13 @@ func serverCmdArgs(ctx *cli.Context) []string {
 
 func serverHandleCmdArgs(ctx *cli.Context) {
 	// Handle common command args.
+	// 处理server命令的所有参数，例如console-address, address等
+	// 主要设置一下的变量：
+	// 1. globalMinioHost
+	// 2. globalMinioPort
+	// 3. globalMinioConsoleHost
+	// 4. globalMinioConsolePort
+	// 5. globalMinioAddr
 	handleCommonCmdArgs(ctx)
 
 	logger.FatalIf(CheckLocalServerAddr(globalMinioAddr), "Unable to validate passed arguments")
@@ -165,9 +172,12 @@ func serverHandleCmdArgs(ctx *cli.Context) {
 	// Register root CAs for remote ENVs
 	env.RegisterGlobalCAs(globalRootCAs)
 
+	// 获取Endpoints和安装类型（FS/纠删/集群）
 	globalEndpoints, setupType, err = createServerEndpoints(globalMinioAddr, serverCmdArgs(ctx)...)
 	logger.FatalIf(err, "Invalid command line arguments")
 
+	// 获取本机的peer，FS和纠删模式下，一般返回127.0.0.1:9000;
+	// 集群模式先，传入参数中的第一个节点的地址。
 	globalLocalNodeName = GetLocalPeer(globalEndpoints, globalMinioHost, globalMinioPort)
 
 	globalRemoteEndpoints = make(map[string]Endpoint)
@@ -417,18 +427,23 @@ func serverMain(ctx *cli.Context) {
 	compressSelfTest()
 
 	// Handle all server command args.
+	// 处理所有server命令相关的参数
 	serverHandleCmdArgs(ctx)
 
 	// Handle all server environment vars.
+	// 处理所有server命令的相关环境变量
+	// 主要还是将超级用户的名称和密码保存到全局变量globalActiveCred中
 	serverHandleEnvVars()
 
 	// Set node name, only set for distributed setup.
+	// 设置节点名称，只有在集群模式下才设置，非集群模式会直接返回空字符串
 	globalConsoleSys.SetNodeName(globalLocalNodeName)
 
 	// Initialize all help
 	initHelp()
 
 	// Initialize all sub-systems
+	// 初始化各种全局变量
 	initAllSubsystems()
 
 	// Is distributed setup, error out if no certificates are found for HTTPS endpoints.

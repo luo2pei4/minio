@@ -343,6 +343,7 @@ func createServerEndpoints(serverAddr string, args ...string) (
 		return nil, -1, errInvalidArgument
 	}
 
+	// 参数中没有省略号的情况
 	if !ellipses.HasEllipses(args...) {
 		setArgs, err := GetAllSets(args...)
 		if err != nil {
@@ -364,12 +365,16 @@ func createServerEndpoints(serverAddr string, args ...string) (
 	}
 
 	var foundPrevLocal bool
+
+	// 参数中有省略号的情况
 	for _, arg := range args {
+		// 将省略号解析出来, 生成一个二维slice
 		setArgs, err := GetAllSets(arg)
 		if err != nil {
 			return nil, -1, err
 		}
 
+		// 根据解析出来的endpoint名称，创建endpoint的实例和安装类型。
 		endpointList, gotSetupType, err := CreateEndpoints(serverAddr, foundPrevLocal, setArgs...)
 		if err != nil {
 			return nil, -1, err

@@ -403,6 +403,7 @@ func handleCommonCmdArgs(ctx *cli.Context) {
 		consoleAddr = ctx.String("console-address")
 	}
 
+	// 当没有设置console-address参数，自动获取一个可用的端口号
 	if consoleAddr == "" {
 		p, err := xnet.GetFreePort()
 		if err != nil {
