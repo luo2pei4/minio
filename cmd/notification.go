@@ -1294,6 +1294,7 @@ func (sys *NotificationSys) restClientFromHash(s string) (client *peerRESTClient
 // NewNotificationSys - creates new notification system object.
 func NewNotificationSys(endpoints EndpointServerPools) *NotificationSys {
 	// targetList/bucketRulesMap/bucketRemoteTargetRulesMap are populated by NotificationSys.Init()
+	// 创建集群中其他节点的客户端的切片
 	remote, all := newPeerRestClients(endpoints)
 	return &NotificationSys{
 		targetList:                 event.NewTargetList(),

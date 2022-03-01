@@ -230,12 +230,15 @@ func initAllSubsystems() {
 	if globalIsErasure {
 		globalHealStateLK.Lock()
 		// New global heal state
+		// 创建一个HealState的实例，并启动该实例的一个协程，用于定时删除healSequence中过期的数据。
 		globalAllHealState = newHealState(true)
+		// 创建一个HealState的实例
 		globalBackgroundHealState = newHealState(false)
 		globalHealStateLK.Unlock()
 	}
 
 	// Create new notification system and initialize notification peer targets
+	// 创建管局的通知子系统，用于探知集群中其他节点的运行状况。
 	globalNotificationSys = NewNotificationSys(globalEndpoints)
 
 	// Create new bucket metadata system.

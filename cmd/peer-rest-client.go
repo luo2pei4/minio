@@ -954,13 +954,16 @@ func newPeerRestClients(endpoints EndpointServerPools) (remote, all []*peerRESTC
 		// Only useful in distributed setups
 		return nil, nil
 	}
+	// 返回排序后的其他节点的host切片（不含local节点的host）
 	hosts := endpoints.hostsSorted()
 	remote = make([]*peerRESTClient, 0, len(hosts))
 	all = make([]*peerRESTClient, len(hosts))
 	for i, host := range hosts {
+		// hostsSorted函数中直接节点数声明切片长度，这样可以少做一次循环。所以外面需要判断是否有nil。空间换时间。
 		if host == nil {
 			continue
 		}
+		// 创建集群中其他节点的客户端。
 		all[i] = newPeerRESTClient(host)
 		remote = append(remote, all[i])
 	}
@@ -983,8 +986,10 @@ func newPeerRESTClient(peer *xnet.Host) *peerRESTClient {
 		Path:   peerRESTPath,
 	}
 
+	// 实例化rest/Client结构体
 	restClient := rest.NewClient(serverURL, globalInternodeTransport, newCachedAuthToken())
 	// Use a separate client to avoid recursive calls.
+	// 用一个分开的客户端，避免递归调用。
 	healthClient := rest.NewClient(serverURL, globalInternodeTransport, newCachedAuthToken())
 	healthClient.ExpectTimeouts = true
 	healthClient.NoMetrics = true
@@ -993,7 +998,9 @@ func newPeerRESTClient(peer *xnet.Host) *peerRESTClient {
 	restClient.HealthCheckFn = func() bool {
 		ctx, cancel := context.WithTimeout(context.Background(), restClient.HealthCheckTimeout)
 		defer cancel()
+		// 调用Call方法，确认指定节点的健康状况
 		respBody, err := healthClient.Call(ctx, peerRESTMethodHealth, nil, nil, -1)
+		// 释放请求结果
 		xhttp.DrainBody(respBody)
 		return !isNetworkError(err)
 	}

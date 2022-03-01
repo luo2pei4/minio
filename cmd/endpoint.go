@@ -327,11 +327,14 @@ func (l EndpointServerPools) Hostnames() []string {
 // hostsSorted will return all hosts found.
 // The LOCAL host will be nil, but the indexes of all hosts should
 // remain consistent across the cluster.
+// 返回排序后的其他节点的host切片（不含local节点）
 func (l EndpointServerPools) hostsSorted() []*xnet.Host {
 	peers, localPeer := l.peers()
+	// 排序
 	sort.Strings(peers)
 	hosts := make([]*xnet.Host, len(peers))
 	for i, hostStr := range peers {
+		// 从切片中过滤掉本机节点信息
 		if hostStr == localPeer {
 			continue
 		}
@@ -348,6 +351,7 @@ func (l EndpointServerPools) hostsSorted() []*xnet.Host {
 
 // peers will return all peers, including local.
 // The local peer is returned as a separate string.
+// 返回所有节点信息的切片（含本机节点）和本机节点信息
 func (l EndpointServerPools) peers() (peers []string, local string) {
 	allSet := set.NewStringSet()
 	for _, ep := range l {
