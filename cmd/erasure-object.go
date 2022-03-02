@@ -740,6 +740,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	parityDrives := len(storageDisks) / 2
 	if !opts.MaxParity {
 		// Get parity and data drive count based on storage class metadata
+		// 根据用户设置获取基偶校验盘数量，默认为2块盘
 		parityDrives = globalStorageClass.GetParityForSC(opts.UserDefined[xhttp.AmzStorageClass])
 		if parityDrives <= 0 {
 			parityDrives = er.defaultParityCount

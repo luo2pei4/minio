@@ -238,7 +238,7 @@ func initAllSubsystems() {
 	}
 
 	// Create new notification system and initialize notification peer targets
-	// 创建管局的通知子系统，用于探知集群中其他节点的运行状况。
+	// 创建全局的通知子系统，用于集群中各节点间的通信。
 	globalNotificationSys = NewNotificationSys(globalEndpoints)
 
 	// Create new bucket metadata system.

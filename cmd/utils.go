@@ -169,16 +169,20 @@ const (
 	// This is a divergence from S3 limit on purpose to support
 	// use cases where users are going to upload large files
 	// using 'curl' and presigned URL.
+	// 对象的最大size，5TB
 	globalMaxObjectSize = 5 * humanize.TiByte
 
 	// Minimum Part size for multipart upload is 5MiB
+	// 对象分片上传时单片最小size，5MB
 	globalMinPartSize = 5 * humanize.MiByte
 
 	// Maximum Part size for multipart upload is 5GiB
+	// 对象分片上传时单片最大size，5BG
 	globalMaxPartSize = 5 * humanize.GiByte
 
 	// Maximum Part ID for multipart upload is 10000
 	// (Acceptable values range from 1 to 10000 inclusive)
+	// 对象分片上传时的最大分片数量，10000
 	globalMaxPartID = 10000
 
 	// Default values used while communicating for gateway communication
