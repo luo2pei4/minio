@@ -253,8 +253,12 @@ func getTotalSizes(argPatterns []ellipses.ArgPattern) []uint64 {
 // of endpoints following the ellipses pattern, this is what is used
 // by the object layer for initializing itself.
 func parseEndpointSet(customSetDriveCount uint64, args ...string) (ep endpointSet, err error) {
+	// 创建基于传入参数的切片，目前来看长度和容量只有1
+	// 理论上传入了几个server pool的配置，就创建长度为几的切片。 TODO 待验证
 	argPatterns := make([]ellipses.ArgPattern, len(args))
 	for i, arg := range args {
+
+		// 查找带省略号的模式(pattern),因为是SDK中函数，所以将大致流程以注释的方式写到这里.
 		patterns, perr := ellipses.FindEllipsesPatterns(arg)
 		if perr != nil {
 			return endpointSet{}, config.ErrInvalidErasureEndpoints(nil).Msg(perr.Error())
@@ -279,6 +283,7 @@ func parseEndpointSet(customSetDriveCount uint64, args ...string) (ep endpointSe
 // This applies to even distributed setup syntax as well.
 func GetAllSets(args ...string) ([][]string, error) {
 	var customSetDriveCount uint64
+	// 从环境变量MINIO_ERASURE_SET_DRIVE_COUNT中获取每个纠删集有多少块盘
 	if v := env.Get(EnvErasureSetDriveCount, ""); v != "" {
 		driveCount, err := strconv.Atoi(v)
 		if err != nil {
@@ -288,6 +293,7 @@ func GetAllSets(args ...string) ([][]string, error) {
 	}
 
 	var setArgs [][]string
+	// 传入参数中带有省略号的场合
 	if !ellipses.HasEllipses(args...) {
 		var setIndexes [][]uint64
 		// Check if we have more one args.
@@ -306,7 +312,10 @@ func GetAllSets(args ...string) ([][]string, error) {
 			setIndexes: setIndexes,
 		}
 		setArgs = s.Get()
+
+		// 传入参数中不带省略号的场合
 	} else {
+		// 解析传入参数
 		s, err := parseEndpointSet(customSetDriveCount, args...)
 		if err != nil {
 			return nil, err
@@ -367,8 +376,12 @@ func createServerEndpoints(serverAddr string, args ...string) (
 	var foundPrevLocal bool
 
 	// 参数中有省略号的情况
+	// args是server启动时候传入的参数，例:
+	//     http://192.168.50.{1...4}/data/minio{1...4}
 	for _, arg := range args {
+
 		// 将省略号解析出来, 生成一个二维slice
+		// setArgs[]表示有多少个纠删集，setArgs[][0]表示纠删集中有多少块盘
 		setArgs, err := GetAllSets(arg)
 		if err != nil {
 			return nil, -1, err
