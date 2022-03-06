@@ -46,6 +46,7 @@ var setSizes = []uint64{4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 
 // getDivisibleSize - returns a greatest common divisor of
 // all the ellipses sizes.
+// 获取server pool盘数的最大公约数。如果只有一个server pool的话，最大公约数就是这个server pool的总盘数。
 func getDivisibleSize(totalSizes []uint64) (result uint64) {
 	gcd := func(x, y uint64) uint64 {
 		for y != 0 {
@@ -65,6 +66,8 @@ var isValidSetSize = func(count uint64) bool {
 	return (count >= setSizes[0] && count <= setSizes[len(setSizes)-1])
 }
 
+// 通过最大公约数和可用的纠删集磁盘数切片，选出合适的纠删集磁盘数。
+// 核心思路就尽量减少纠删集，纠删集的磁盘数尽量大。
 func commonSetDriveCount(divisibleSize uint64, setCounts []uint64) (setSize uint64) {
 	// prefers setCounts to be sorted for optimal behavior.
 	if divisibleSize < setCounts[len(setCounts)-1] {
@@ -91,8 +94,11 @@ func commonSetDriveCount(divisibleSize uint64, setCounts []uint64) (setSize uint
 // we also use uniform number of drives common across all ellipses patterns.
 func possibleSetCountsWithSymmetry(setCounts []uint64, argPatterns []ellipses.ArgPattern) []uint64 {
 	newSetCounts := make(map[uint64]struct{})
+
+	// 遍历可用的set数，
 	for _, ss := range setCounts {
 		var symmetry bool
+		// 遍历模式切片，判断可用set数与pattern中的seq的长度取余是否为0
 		for _, argPattern := range argPatterns {
 			for _, p := range argPattern {
 				if uint64(len(p.Seq)) > ss {
@@ -105,6 +111,7 @@ func possibleSetCountsWithSymmetry(setCounts []uint64, argPatterns []ellipses.Ar
 		// With no arg patterns, it is expected that user knows
 		// the right symmetry, so either ellipses patterns are
 		// provided (recommended) or no ellipses patterns.
+		// 可用set数与pattern中的seq的长度取余为0的话，说明该可用的set数是对称的
 		if _, ok := newSetCounts[ss]; !ok && (symmetry || argPatterns == nil) {
 			newSetCounts[ss] = struct{}{}
 		}
@@ -119,6 +126,7 @@ func possibleSetCountsWithSymmetry(setCounts []uint64, argPatterns []ellipses.Ar
 	// eyes that we prefer a sorted setCount slice for the
 	// subsequent function to figure out the right common
 	// divisor, it avoids loops.
+	// 升序排列
 	sort.Slice(setCounts, func(i, j int) bool {
 		return setCounts[i] < setCounts[j]
 	})
@@ -138,13 +146,17 @@ func getSetIndexes(args []string, totalSizes []uint64, customSetDriveCount uint6
 	setIndexes = make([][]uint64, len(totalSizes))
 	for _, totalSize := range totalSizes {
 		// Check if totalSize has minimum range upto setSize
+		// 判断总盘数是否小于4块盘，或者总盘数是否小于用户指定的纠删集盘数
 		if totalSize < setSizes[0] || totalSize < customSetDriveCount {
 			msg := fmt.Sprintf("Incorrect number of endpoints provided %s", args)
 			return nil, config.ErrInvalidNumberOfErasureEndpoints(nil).Msg(msg)
 		}
 	}
 
+	// 获取所有server pool盘数的最大公约数
 	commonSize := getDivisibleSize(totalSizes)
+	// 用最大公约数算出可能的纠删集磁盘数，并返回切片
+	// 例如，最大公约数是32的场合，可用的set数是4、8、16
 	possibleSetCounts := func(setSize uint64) (ss []uint64) {
 		for _, s := range setSizes {
 			if setSize%s == 0 {
@@ -259,6 +271,57 @@ func parseEndpointSet(customSetDriveCount uint64, args ...string) (ep endpointSe
 	for i, arg := range args {
 
 		// 查找带省略号的模式(pattern),因为是SDK中函数，所以将大致流程以注释的方式写到这里.
+		// 创建一个Pattern的切片patterns
+		// 通过Regexp的FindStringSubmatch方法，查找正则表达式为{[0-9a-z]*\.\.\.[0-9a-z]*}的字符串切片parts
+		// 例，传入字符串: http://192.168.1.{1...4}/data/minio{1...8}, 获取字符串切片如下
+		//   parts[0]: "http://192.168.1.{1...4}/data/minio{1...8}"
+		//   parts[1]: "http://192.168.1.{1...4}/data/minio"
+		//   parts[2]: "{1...8}"
+		//   parts[3]: ""        是的，还有一个空串。
+		// 删除切片parts的第一个元素，切片内容变成一下内容
+		//   parts[0]: "http://192.168.1.{1...4}/data/minio"
+		//   parts[1]: "{1...8}"
+		//   parts[2]: ""
+		// 判断parts[0]是否匹配正则表达式{[0-9a-z]*\.\.\.[0-9a-z]*}
+		// 匹配的情况下，解析parts[1]的范围，返回一个string类型的切片, 如下
+		//   seq{"1","2","3","4","5","6","7","8"}
+		// 向patterns切片中放入一个Pattern对象，对象内容如下
+		//   Pattern{
+		//       Prefix: "",
+		//       Suffix: parts[2],   实际是空字符串
+		//       Seq: seq,
+		//   }
+		// 再次通过Regexp的FindStringSubmatch方法，查找parts[0]的符合正则表达式为{[0-9a-z]*\.\.\.[0-9a-z]*}的字符串切片parts
+		//   parts[0]: "http://192.168.1.{1...4}/data/minio"
+		//   parts[1]: "http://192.168.1."
+		//   parts[2]: "{1...4}"
+		//   parts[3]: "/data/minio"
+		// 再次删除切片parts的第一个元素，切片内容变成一下内容
+		//   parts[0]: "http://192.168.1."
+		//   parts[1]: "{1...4}"
+		//   parts[2]: "/data/minio"
+		// 判断parts的长度是否大于0
+		// 大于0的情况下，解析parts[1]的范围，返回一个string类型的切片, 如下
+		//   seq{"1","2","3","4"}
+		// 向patterns切片中放入第二个Pattern对象，对象内容如下
+		//   Pattern{
+		//       Prefix: parts[0],    实际内容: "http://192.168.1."
+		//       Suffix: parts[2],    实际内容: "/data/minio"
+		//       Seq: seq,
+		//   }
+		// 对patterns进行遍历，如果没有{和}字符，则返回patterns，具体内容如下
+		//   [
+		//       {
+		//           Prefix: "",
+		//           Suffix: "",
+		//           Seq: {"1","2","3","4","5","6","7","8"}
+		//       },
+		//       {
+		//           Prefix: "http://192.168.1.",
+		//           Suffix: "/data/minio",
+		//           Seq: {"1","2","3","4"}
+		//       }
+		//   ]
 		patterns, perr := ellipses.FindEllipsesPatterns(arg)
 		if perr != nil {
 			return endpointSet{}, config.ErrInvalidErasureEndpoints(nil).Msg(perr.Error())
@@ -266,6 +329,25 @@ func parseEndpointSet(customSetDriveCount uint64, args ...string) (ep endpointSe
 		argPatterns[i] = patterns
 	}
 
+	// 传入参数内容具体如下
+	// args: ["http://192.168.1.{1...4}/data/minio{1...8}"]
+	// getTotalSizes(argPatterns): [32]
+	// customSetDriveCount: 0
+	// argPatterns:
+	//   [
+	//       [
+	//           {
+	//               Prefix: "",
+	//               Suffix: "",
+	//               Seq: {"1","2","3","4","5","6","7","8"}
+	//           },
+	//           {
+	//               Prefix: "http://192.168.1.",
+	//               Suffix: "/data/minio",
+	//               Seq: {"1","2","3","4"}
+	//           }
+	//       ]
+	//   ]
 	ep.setIndexes, err = getSetIndexes(args, getTotalSizes(argPatterns), customSetDriveCount, argPatterns)
 	if err != nil {
 		return endpointSet{}, config.ErrInvalidErasureEndpoints(nil).Msg(err.Error())
@@ -381,7 +463,54 @@ func createServerEndpoints(serverAddr string, args ...string) (
 	for _, arg := range args {
 
 		// 将省略号解析出来, 生成一个二维slice
-		// setArgs[]表示有多少个纠删集，setArgs[][0]表示纠删集中有多少块盘
+		// setArgs[]表示有多少个纠删集，setArgs[][]表示纠删集中磁盘的URL，实例内容如下
+		/*
+			[
+			    [
+			        http://192.168.1.1/data/minio1
+			        http://192.168.1.2/data/minio1
+			        http://192.168.1.3/data/minio1
+			        http://192.168.1.4/data/minio1
+			        http://192.168.1.1/data/minio2
+			        http://192.168.1.2/data/minio2
+			        http://192.168.1.3/data/minio2
+			        http://192.168.1.4/data/minio2
+			        http://192.168.1.1/data/minio3
+			        http://192.168.1.2/data/minio3
+			        http://192.168.1.3/data/minio3
+			        http://192.168.1.4/data/minio3
+			        http://192.168.1.1/data/minio4
+			        http://192.168.1.2/data/minio4
+			        http://192.168.1.3/data/minio4
+			        http://192.168.1.4/data/minio4
+			    ]
+			    [
+			        http://192.168.1.1/data/minio5
+			        http://192.168.1.2/data/minio5
+			        http://192.168.1.3/data/minio5
+			        http://192.168.1.4/data/minio5
+			        http://192.168.1.1/data/minio6
+			        http://192.168.1.2/data/minio6
+			        http://192.168.1.3/data/minio6
+			        http://192.168.1.4/data/minio6
+			        http://192.168.1.1/data/minio7
+			        http://192.168.1.2/data/minio7
+			        http://192.168.1.3/data/minio7
+			        http://192.168.1.4/data/minio7
+			        http://192.168.1.1/data/minio8
+			        http://192.168.1.2/data/minio8
+			        http://192.168.1.3/data/minio8
+			        http://192.168.1.4/data/minio8
+			    ]
+			]
+		*/
+		// 纠删组数量和每个纠删组磁盘数的计算，简单如下
+		// 1. 解析传入参数中的pattern
+		// 2. 先获取每个server pool的磁盘总数
+		// 3. 计算server pool磁盘数的最大公约数
+		// 4. 通过最大公约数，从给定的纠删组磁盘数的数据集中找出可用的数据项
+		// 5. 遍历步骤3返回的切片，并且和步骤1中pattern的seq长度做计算，找出对称的数据(对称性计算参看函数possibleSetCountsWithSymmetry)
+		// 6. 从步骤5中选出磁盘数最大的选项
 		setArgs, err := GetAllSets(arg)
 		if err != nil {
 			return nil, -1, err
