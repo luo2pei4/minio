@@ -944,7 +944,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 			continue
 		}
 		if len(inlineBuffers) > 0 && inlineBuffers[i] != nil {
-			partsMetadata[i].Data = inlineBuffers[i].Bytes()
+			partsMetadata[i].Data = inlineBuffers[i].Bytes()    //对象的数据存放在元数据中
 		} else {
 			partsMetadata[i].Data = nil
 		}
