@@ -1561,7 +1561,12 @@ func (z *erasureServerPools) ListBuckets(ctx context.Context) (buckets []BucketI
 
 func (z *erasureServerPools) HealFormat(ctx context.Context, dryRun bool) (madmin.HealResultItem, error) {
 	// Acquire lock on format.json
+	// 获得format.json的lock
+	// 实际返回的是一个cmd/localLockInstance结构体的实例，该结构体实现了RWLocker接口
+	// 包含了nsLockMap，“.minio.sys”和“format.json”两个字符串，还有一个随机生成的UUID
 	formatLock := z.NewNSLock(minioMetaBucket, formatConfigFile)
+	// 加锁成功的情况下，返回的结构体中只包含一个空的context
+	// 同时，在formatLock实例中设置了nsLockMap的数据
 	lkctx, err := formatLock.GetLock(ctx, globalOperationTimeout)
 	if err != nil {
 		return madmin.HealResultItem{}, err

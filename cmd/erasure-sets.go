@@ -124,6 +124,8 @@ func (s *erasureSets) getDiskMap() map[Endpoint]StorageAPI {
 			if disk == OfflineDisk {
 				continue
 			}
+			// 调用xlStorageDiskIDCheck的IsOnline方法，
+			// IsOnline方法又调用xlStorage的GetDiskID方法读取指定磁盘下的format.json文件，根据format.json文件是否存在判断指定磁盘是否在线
 			if !disk.IsOnline() {
 				continue
 			}
@@ -141,6 +143,7 @@ func connectEndpoint(endpoint Endpoint) (StorageAPI, *formatErasureV3, error) {
 		return nil, nil, err
 	}
 
+	// 读取指定磁盘下的format.json文件，解码为formatErasureV3结构体的实例并返回
 	format, err := loadFormatErasure(disk)
 	if err != nil {
 		if errors.Is(err, errUnformattedDisk) {
@@ -210,6 +213,7 @@ func (s *erasureSets) connectDisks() {
 
 	var wg sync.WaitGroup
 	setsJustConnected := make([]bool, s.setCount)
+	// 返回纠删集中在线磁盘的Map
 	diskMap := s.getDiskMap()
 	for _, endpoint := range s.endpoints.Endpoints {
 		if isEndpointConnectionStable(diskMap, endpoint, s.lastConnectDisksOpTime) {

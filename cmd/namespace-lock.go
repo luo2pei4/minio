@@ -91,9 +91,11 @@ type nsLockMap struct {
 
 // Lock the namespace resource.
 func (n *nsLockMap) lock(ctx context.Context, volume string, path string, lockSource, opsID string, readLock bool, timeout time.Duration) (locked bool) {
+	// 拼接文件的路径
 	resource := pathJoin(volume, path)
 
 	n.lockMapMutex.Lock()
+	// 如果资源的路径在lockMap中不存在，则新增一个nsLock的实例
 	nsLk, found := n.lockMap[resource]
 	if !found {
 		nsLk = &nsLock{
@@ -234,10 +236,13 @@ func (n *nsLockMap) NewNSLock(lockers func() ([]dsync.NetLocker, string), volume
 
 // Lock - block until write lock is taken or timeout has occurred.
 func (li *localLockInstance) GetLock(ctx context.Context, timeout *dynamicTimeout) (_ LockContext, timedOutErr error) {
+	// 返回上溯两个调用栈的信息
 	lockSource := getSource(2)
 	start := UTCNow()
 	const readLock = false
 	success := make([]int, len(li.paths))
+	// 对所有资源加锁，如果一个加锁失败，就释放已经加锁的资源
+	// 对每个资源进行加锁时有重试机制，只有超时的时候才会报错，所以如果一个资源加锁失败，在释放完已加锁资源后，返回的是超时错误
 	for i, path := range li.paths {
 		if !li.ns.lock(ctx, li.volume, path, lockSource, li.opsID, readLock, timeout.Timeout()) {
 			timeout.LogFailure()

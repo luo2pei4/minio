@@ -26,6 +26,7 @@ import (
 )
 
 // A LRWMutex is a mutual exclusion lock with timeouts.
+// LRWMutex是一个带有超时属性的互斥锁
 type LRWMutex struct {
 	id          string
 	source      string

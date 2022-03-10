@@ -383,6 +383,7 @@ func saveFormatErasure(disk StorageAPI, format *formatErasureV3, heal bool) erro
 }
 
 // loadFormatErasure - loads format.json from disk.
+// 读取指定磁盘下的format.json文件，解码为formatErasureV3结构体的实例并返回
 func loadFormatErasure(disk StorageAPI) (format *formatErasureV3, err error) {
 	buf, err := disk.ReadAll(context.TODO(), minioMetaBucket, formatConfigFile)
 	if err != nil {
