@@ -222,8 +222,10 @@ func (s *erasureSets) connectDisks() {
 		wg.Add(1)
 		go func(endpoint Endpoint) {
 			defer wg.Done()
+			// 查询磁盘的信息
 			disk, format, err := connectEndpoint(endpoint)
 			if err != nil {
+				// 如果是本地磁盘且没有读取到format.json文件信息，将改磁盘endpoint压入globalBackgroundHealState
 				if endpoint.IsLocal && errors.Is(err, errUnformattedDisk) {
 					globalBackgroundHealState.pushHealLocalDisks(endpoint)
 					logger.Info(fmt.Sprintf("Found unformatted drive %s, attempting to heal...", endpoint))
@@ -232,6 +234,7 @@ func (s *erasureSets) connectDisks() {
 				}
 				return
 			}
+			// 如果是本地磁盘并且读取到.healing.bin文件，将改磁盘数据压入globalBackgroundHealState
 			if disk.IsLocal() && disk.Healing() != nil {
 				globalBackgroundHealState.pushHealLocalDisks(disk.Endpoint())
 				logger.Info(fmt.Sprintf("Found the drive %s that needs healing, attempting to heal...", disk))
@@ -1338,6 +1341,7 @@ func (s *erasureSets) HealFormat(ctx context.Context, dryRun bool) (res madmin.H
 			if storageDisks[index] == nil || format == nil {
 				continue
 			}
+			// 保存临时的format信息，并指定需要做heal，调用save方法在磁盘上创建.healing.bin文件
 			if err := saveFormatErasure(storageDisks[index], format, true); err != nil {
 				logger.LogIf(ctx, fmt.Errorf("Disk %s failed to write updated 'format.json': %v", storageDisks[index], err))
 				tmpNewFormats[index] = nil // this disk failed to write new format

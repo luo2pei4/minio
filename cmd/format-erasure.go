@@ -142,6 +142,9 @@ func (f *formatErasureV3) Clone() *formatErasureV3 {
 }
 
 // Returns formatErasure.Erasure.Version
+// 创建并返回formatErasureV3结构体的实例，
+// formatErasureV3结构体实例的ID是随机生成的UUID
+// 实例中还包含了所有纠删集下所有磁盘的UUID，磁盘的UUID也是随机生成的
 func newFormatErasureV3(numSets int, setLen int) *formatErasureV3 {
 	format := &formatErasureV3{}
 	format.Version = formatMetaVersionV1
@@ -151,6 +154,7 @@ func newFormatErasureV3(numSets int, setLen int) *formatErasureV3 {
 	format.Erasure.DistributionAlgo = formatErasureVersionV3DistributionAlgoV3
 	format.Erasure.Sets = make([][]string, numSets)
 
+	// 为每个纠删集中的每一块磁盘生成一个UUID
 	for i := 0; i < numSets; i++ {
 		format.Erasure.Sets[i] = make([]string, setLen)
 		for j := 0; j < setLen; j++ {
@@ -374,6 +378,7 @@ func saveFormatErasure(disk StorageAPI, format *formatErasureV3, heal bool) erro
 	}
 
 	disk.SetDiskID(diskID)
+	// 需要heal时，调用save方法在磁盘上创建.healing.bin文件
 	if heal {
 		ctx := context.Background()
 		ht := newHealingTracker(disk)
@@ -746,12 +751,15 @@ func fixFormatErasureV3(storageDisks []StorageAPI, endpoints Endpoints, formats 
 
 // initFormatErasure - save Erasure format configuration on all disks.
 func initFormatErasure(ctx context.Context, storageDisks []StorageAPI, setCount, setDriveCount int, deploymentID, distributionAlgo string, sErrs []error) (*formatErasureV3, error) {
+	// // 创建并返回formatErasureV3结构体的实例
 	format := newFormatErasureV3(setCount, setDriveCount)
 	formats := make([]*formatErasureV3, len(storageDisks))
 	wantAtMost := ecDrivesNoConfig(setDriveCount)
 
+	// i为纠删集的遍历编号
 	for i := 0; i < setCount; i++ {
 		hostCount := make(map[string]int, setDriveCount)
+		// j每个纠删集中磁盘的遍历编号
 		for j := 0; j < setDriveCount; j++ {
 			disk := storageDisks[i*setDriveCount+j]
 			newFormat := format.Clone()
@@ -793,10 +801,13 @@ func initFormatErasure(ctx context.Context, storageDisks []StorageAPI, setCount,
 	markRootDisksAsDown(storageDisks, sErrs)
 
 	// Save formats `format.json` across all disks.
+	// 向所有磁盘中写入format.json文件
 	if err := saveFormatErasureAll(ctx, storageDisks, formats); err != nil {
 		return nil, err
 	}
 
+	// 正常情况下，返回的formatErasureV3结构体实例与函数开始调用newFormatErasureV3函数生成的实例一致
+	// format.Erasure.This为空字符串
 	return getFormatErasureInQuorum(formats)
 }
 

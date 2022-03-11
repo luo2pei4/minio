@@ -198,6 +198,8 @@ func connectLoadInitFormats(verboseLogging bool, firstDisk bool, endpoints Endpo
 	}
 
 	// Attempt to load all `format.json` from all disks.
+	// 尝试加载所有磁盘上的format.json文件
+	// 首次启动服务的时候，将返回err，且err的数量和磁盘数量一致，错误类型为errDiskNotFound
 	formatConfigs, sErrs := loadFormatErasureAll(storageDisks, false)
 	// Check if we have
 	for i, sErr := range sErrs {
@@ -224,6 +226,7 @@ func connectLoadInitFormats(verboseLogging bool, firstDisk bool, endpoints Endpo
 			humanize.Ordinal(poolCount), setCount, setDriveCount)
 
 		// Initialize erasure code format on disks
+		// 在每个磁盘上创建format.json文件
 		format, err = initFormatErasure(GlobalContext, storageDisks, setCount, setDriveCount, deploymentID, distributionAlgo, sErrs)
 		if err != nil {
 			return nil, nil, err

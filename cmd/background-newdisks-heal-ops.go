@@ -256,10 +256,15 @@ func initAutoHeal(ctx context.Context, objAPI ObjectLayer) {
 		return
 	}
 
+	// 1、启动AddWorker协程，用于接收需要heal的磁盘信息，并进行相应的处理。包括调用healDiskFormat函数和相应ObjectLayer实例的HealBucket和HealObject方法
+	// 2、调用globalBackgroundHealState的LaunchNewHealSequence方法
 	initBackgroundHealing(ctx, objAPI) // start quick background healing
 
 	bgSeq := mustGetHealSequence(ctx)
 
+	// 初期判断是否有需要heal的磁盘，
+	// 如果有就压入globalBackgroundHealState
+	// 如果需要heal的磁盘数等于endpoint的数据量，表明是全新安装，不做heal
 	globalBackgroundHealState.pushHealLocalDisks(getLocalDisksToHeal()...)
 
 	if drivesToHeal := globalBackgroundHealState.healDriveCount(); drivesToHeal > 0 {
@@ -277,6 +282,7 @@ func initAutoHeal(ctx context.Context, objAPI ObjectLayer) {
 		}
 	}
 
+	// 修复config文件夹下的文件
 	if err := bgSeq.healDiskMeta(objAPI); err != nil {
 		if newObjectLayerFn() != nil {
 			// log only in situations, when object layer
@@ -285,6 +291,7 @@ func initAutoHeal(ctx context.Context, objAPI ObjectLayer) {
 		}
 	}
 
+	// 启动本地磁盘监控，每个10秒扫描一次globalBackgroundHealState，查看是否有需要heal的磁盘
 	go monitorLocalDisksAndHeal(ctx, z, bgSeq)
 }
 
@@ -372,6 +379,7 @@ func monitorLocalDisksAndHeal(ctx context.Context, z *erasureServerPools, bgSeq 
 				erasureSetInPoolDisksToHeal[poolIdx][setIndex] = append(erasureSetInPoolDisksToHeal[poolIdx][setIndex], disk)
 			}
 
+			// 获取所有server pool中的所有bucket信息（名字&创建时间）
 			buckets, _ := z.ListBuckets(ctx)
 
 			// Buckets data are dispersed in multiple zones/sets, make
@@ -383,6 +391,7 @@ func monitorLocalDisksAndHeal(ctx context.Context, z *erasureServerPools, bgSeq 
 			})
 
 			// Heal latest buckets first.
+			// 按bucket的创建时间倒序排序
 			sort.Slice(buckets, func(i, j int) bool {
 				a, b := strings.HasPrefix(buckets[i].Name, minioMetaBucket), strings.HasPrefix(buckets[j].Name, minioMetaBucket)
 				if a != b {
@@ -407,6 +416,7 @@ func monitorLocalDisksAndHeal(ctx context.Context, z *erasureServerPools, bgSeq 
 							logger.Info("Healing disk '%v' on %s pool", disk, humanize.Ordinal(i+1))
 
 							// So someone changed the drives underneath, healing tracker missing.
+							// 加载.healing.bin文件信息，该文件信息在HealFormat函数中创建
 							tracker, err := loadHealingTracker(ctx, disk)
 							if err != nil {
 								logger.Info("Healing tracker missing on '%s', disk was swapped again on %s pool",
@@ -423,7 +433,9 @@ func monitorLocalDisksAndHeal(ctx context.Context, z *erasureServerPools, bgSeq 
 							}
 
 							tracker.PoolIndex, tracker.SetIndex, tracker.DiskIndex = disk.GetDiskLoc()
+							// 向tracker中加入需要heal的bucket
 							tracker.setQueuedBuckets(buckets)
+							// 保存tracker信息到磁盘
 							if err := tracker.save(ctx); err != nil {
 								logger.LogIf(ctx, err)
 								// Unable to write healing tracker, permission denied or some
@@ -432,6 +444,7 @@ func monitorLocalDisksAndHeal(ctx context.Context, z *erasureServerPools, bgSeq 
 								return
 							}
 
+							// heal纠删集
 							err = z.serverPools[i].sets[setIndex].healErasureSet(ctx, tracker.QueuedBuckets, tracker)
 							if err != nil {
 								logger.LogIf(ctx, err)
