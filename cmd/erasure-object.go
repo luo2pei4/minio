@@ -952,7 +952,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 		partsMetadata[i].Erasure.AddChecksumInfo(ChecksumInfo{
 			PartNumber: 1,
 			Algorithm:  DefaultBitrotAlgorithm,
-			Hash:       bitrotWriterSum(w),
+			Hash:       bitrotWriterSum(w),          //checksum中的hash值当前版本没有实际用处
 		})
 	}
 	if opts.UserDefined["etag"] == "" {
