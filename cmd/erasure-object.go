@@ -421,9 +421,12 @@ func (er erasureObjects) deleteIfDangling(ctx context.Context, bucket, object st
 }
 
 func (er erasureObjects) getObjectFileInfo(ctx context.Context, bucket, object string, opts ObjectOptions, readData bool) (fi FileInfo, metaArr []FileInfo, onlineDisks []StorageAPI, err error) {
+	// 获取当前server pool中的所有磁盘
 	disks := er.getDisks()
 
 	// Read metadata associated with the object from all disks.
+	// 从所有磁盘的下列路径中的xl.meta文件中读取中读取读取所有与对象相关的元数据
+	// /{mountpoint}/.minio.sys/buckets/.usage.json
 	metaArr, errs := readAllFileInfo(ctx, disks, bucket, object, opts.VersionID, readData)
 
 	readQuorum, _, err := objectQuorumFromMeta(ctx, metaArr, errs, er.defaultParityCount)
@@ -737,6 +740,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 
 	storageDisks := er.getDisks()
 
+	// 校验盘数量初始化为总磁盘数的一半
 	parityDrives := len(storageDisks) / 2
 	if !opts.MaxParity {
 		// Get parity and data drive count based on storage class metadata
@@ -747,6 +751,8 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 		}
 
 		// If we have offline disks upgrade the number of erasure codes for this object.
+		// 如果有离线盘，则更新该对象的纠删码盘数量
+		// parityOrig为临时保存校验盘数量
 		parityOrig := parityDrives
 
 		atomicParityDrives := uatomic.NewInt64(0)
@@ -916,6 +922,8 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 		}
 		logger.LogIf(ctx, err)
 	}
+
+	// 在Encode方法中落盘数据
 	n, erasureErr := erasure.Encode(ctx, toEncode, writers, buffer, writeQuorum)
 	closeBitrotWriters(writers)
 	if erasureErr != nil {
@@ -944,7 +952,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 			continue
 		}
 		if len(inlineBuffers) > 0 && inlineBuffers[i] != nil {
-			partsMetadata[i].Data = inlineBuffers[i].Bytes()    //对象的数据存放在元数据中
+			partsMetadata[i].Data = inlineBuffers[i].Bytes() //对象的数据存放在元数据中
 		} else {
 			partsMetadata[i].Data = nil
 		}
@@ -952,7 +960,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 		partsMetadata[i].Erasure.AddChecksumInfo(ChecksumInfo{
 			PartNumber: 1,
 			Algorithm:  DefaultBitrotAlgorithm,
-			Hash:       bitrotWriterSum(w),          //checksum中的hash值当前版本没有实际用处
+			Hash:       bitrotWriterSum(w), //checksum中的hash值当前版本没有实际用处
 		})
 	}
 	if opts.UserDefined["etag"] == "" {

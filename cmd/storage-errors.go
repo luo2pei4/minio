@@ -125,8 +125,11 @@ func (h StorageErr) Error() string {
 
 // Collection of basic errors.
 var baseErrs = []error{
+	// 磁盘未发现
 	errDiskNotFound,
+	// 有错误的磁盘
 	errFaultyDisk,
+	// 有错误的远程磁盘
 	errFaultyRemoteDisk,
 }
 

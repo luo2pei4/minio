@@ -1249,6 +1249,7 @@ func (s *xlStorage) ReadVersion(ctx context.Context, volume, path, versionID str
 	var buf []byte
 	var dmTime time.Time
 	if readData {
+		// 读取/{mountpoint}/.minio.sys/buckets/.usage.json路径下的xl.meta文件
 		buf, dmTime, err = s.readAllData(ctx, volumeDir, pathJoin(filePath, xlStorageFormatFile))
 	} else {
 		buf, dmTime, err = s.readMetadataWithDMTime(ctx, pathJoin(filePath, xlStorageFormatFile))
@@ -2093,6 +2094,7 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 		}
 	}
 
+	// 拼接源和目标的xl.meta文件路径
 	srcFilePath := pathutil.Join(srcVolumeDir, pathJoin(srcPath, xlStorageFormatFile))
 	dstFilePath := pathutil.Join(dstVolumeDir, pathJoin(dstPath, xlStorageFormatFile))
 
@@ -2118,8 +2120,24 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 		return err
 	}
 
+	// --------------------------------------------------------------------------------------------
+	logger.Info("srcVolumeDir: %s", srcVolumeDir)
+	logger.Info("dstVolumeDir: %s", dstVolumeDir)
+	logger.Info("srcFilePath: %s", srcFilePath)
+	logger.Info("dstFilePath: %s", dstFilePath)
+	logger.Info("srcDataPath: %s", srcDataPath)
+	logger.Info("dstDataPath: %s", dstDataPath)
+	logger.Info("dataDir: %s", dataDir)
+	// --------------------------------------------------------------------------------------------
+
+	// 读取目标文件的xl.meta文件
 	dstBuf, err := xioutil.ReadFile(dstFilePath)
 	if err != nil {
+
+		// --------------------------------------------------------------------------------------------
+		logger.Info("read xl.meta: %s", err.Error())
+		// --------------------------------------------------------------------------------------------
+
 		// handle situations when dstFilePath is 'file'
 		// for example such as someone is trying to
 		// upload an object such as `prefix/object/xl.meta`
@@ -2147,8 +2165,11 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 
 	var xlMeta xlMetaV2
 	var legacyPreserved bool
+	// 读取到xl.meta文件的场合
 	if len(dstBuf) > 0 {
+		// 判断是否有正确的header和major版本号
 		if isXL2V1Format(dstBuf) {
+			// 将dstBuf装入xlMeta变量
 			if err = xlMeta.Load(dstBuf); err != nil {
 				logger.LogIf(ctx, err)
 				// Data appears corrupt. Drop data.
@@ -2163,6 +2184,7 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 				// Data appears corrupt. Drop data.
 			} else {
 				xlMetaLegacy.DataDir = legacyDataDir
+				// 向xlMeta变量中加入legacy metadata的数据
 				if err = xlMeta.AddLegacy(xlMetaLegacy); err != nil {
 					logger.LogIf(ctx, err)
 				}
@@ -2183,6 +2205,13 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 			// new deployments.
 			currentDataPath := pathJoin(dstVolumeDir, dstPath)
 			entries, err := readDirN(currentDataPath, 1)
+
+			// --------------------------------------------------------------------------------------------
+			if err != nil {
+				logger.Info("readDirN: %s", err.Error())
+			}
+			// --------------------------------------------------------------------------------------------
+
 			if err != nil && err != errFileNotFound {
 				return osErrToFileErr(err)
 			}
@@ -2199,6 +2228,11 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	}
 
 	legacyDataPath := pathJoin(dstVolumeDir, dstPath, legacyDataDir)
+
+	// --------------------------------------------------------------------------------------------
+	logger.Info("legacyDataPath: %s", legacyDataPath)
+	// --------------------------------------------------------------------------------------------
+
 	if legacyPreserved {
 		// Preserve all the legacy data, could be slow, but at max there can be 10,000 parts.
 		currentDataPath := pathJoin(dstVolumeDir, dstPath)
@@ -2233,6 +2267,13 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	if fi.VersionID == "" {
 		// return the latest "null" versionId info
 		ofi, err := xlMeta.ToFileInfo(dstVolume, dstPath, nullVersionID)
+
+		// --------------------------------------------------------------------------------------------
+		if err != nil {
+			logger.Info("xlMeta.ToFileInfo: %s", err.Error())
+		}
+		// --------------------------------------------------------------------------------------------
+
 		if err == nil && !ofi.Deleted {
 			if xlMeta.SharedDataDirCountStr(nullVersionID, ofi.DataDir) == 0 {
 				// Purge the destination path as we are not preserving anything
@@ -2259,6 +2300,11 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	healing := fi.XLV1 && fi.DataDir != legacyDataDir
 
 	if err = xlMeta.AddVersion(fi); err != nil {
+
+		// --------------------------------------------------------------------------------------------
+		logger.Info("xlMeta.AddVersion: %s", err.Error())
+		// --------------------------------------------------------------------------------------------
+
 		if legacyPreserved {
 			// Any failed rename calls un-roll previous transaction.
 			s.deleteFile(dstVolumeDir, legacyDataPath, true)
@@ -2279,6 +2325,11 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 
 	if srcDataPath != "" {
 		if err = s.WriteAll(ctx, srcVolume, pathJoin(srcPath, xlStorageFormatFile), dstBuf); err != nil {
+
+			// --------------------------------------------------------------------------------------------
+			logger.Info("xlStorage WriteAll failed: %s", err.Error())
+			// --------------------------------------------------------------------------------------------
+
 			if legacyPreserved {
 				// Any failed rename calls un-roll previous transaction.
 				s.deleteFile(dstVolumeDir, legacyDataPath, true)
@@ -2288,6 +2339,11 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 
 		// renameAll only for objects that have xl.meta not saved inline.
 		if len(fi.Data) == 0 && fi.Size > 0 {
+
+			// --------------------------------------------------------------------------------------------
+			logger.Info("renameAll only for objects that have xl.meta not saved inline.")
+			// --------------------------------------------------------------------------------------------
+
 			s.moveToTrash(dstDataPath, true)
 			if healing {
 				// If we are healing we should purge any legacyDataPath content,
@@ -2306,7 +2362,17 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 		}
 
 		// Commit meta-file
+
+		// --------------------------------------------------------------------------------------------
+		logger.Info("Commit meta-file")
+		// --------------------------------------------------------------------------------------------
+
 		if err = renameAll(srcFilePath, dstFilePath); err != nil {
+
+			// --------------------------------------------------------------------------------------------
+			logger.Info("Commit meta-file renameAll incorrect: %s", err.Error())
+			// --------------------------------------------------------------------------------------------
+
 			if legacyPreserved {
 				// Any failed rename calls un-roll previous transaction.
 				s.deleteFile(dstVolumeDir, legacyDataPath, true)

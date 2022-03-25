@@ -216,6 +216,7 @@ func (x xlFlags) String() string {
 
 // checkXL2V1 will check if the metadata has correct header and is a known major version.
 // The remaining payload and versions are returned.
+// 判断是否有正确的头信息和主版本号
 func checkXL2V1(buf []byte) (payload []byte, major, minor uint16, err error) {
 	if len(buf) <= 8 {
 		return payload, 0, 0, fmt.Errorf("xlMeta: no data")
@@ -231,10 +232,12 @@ func checkXL2V1(buf []byte) (payload []byte, major, minor uint16, err error) {
 	} else {
 		major, minor = binary.LittleEndian.Uint16(buf[4:6]), binary.LittleEndian.Uint16(buf[6:8])
 	}
+	// 如果主版本号大于1，将返回一个错误信息
 	if major > xlVersionMajor {
 		return buf[8:], major, minor, fmt.Errorf("xlMeta: unknown major version %d found", major)
 	}
 
+	// 1~4位为header信息,5~6位为major版本号,7~8位为minor版本号
 	return buf[8:], major, minor, nil
 }
 
