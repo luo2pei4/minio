@@ -157,6 +157,8 @@ func (sCfg *Config) UnmarshalJSON(data []byte) error {
 
 // GetListQuorum interprets list quorum values and returns appropriate
 // acceptable quorum expected for list operations
+// ListQuorum 默认值为strict，可在环境变量MINIO_API_LIST_QUORUM中设置对应的值
+// ListQuorum是在对象查询时使用的变量
 func (sCfg Config) GetListQuorum() int {
 	switch sCfg.ListQuorum {
 	case "reduced":

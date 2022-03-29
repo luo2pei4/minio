@@ -752,19 +752,24 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 
 		// If we have offline disks upgrade the number of erasure codes for this object.
 		// 如果有离线盘，则更新该对象的纠删码盘数量
-		// parityOrig为临时保存校验盘数量
+		// parityOrig为临时保存初期设置中的校验盘数量
 		parityOrig := parityDrives
 
+		// 创建临时原子变量
 		atomicParityDrives := uatomic.NewInt64(0)
 		// Start with current parityDrives
+		// 将奇偶校验盘数量存入原子变量
 		atomicParityDrives.Store(int64(parityDrives))
 
 		var wg sync.WaitGroup
+		// 遍历磁盘对象切片
 		for _, disk := range storageDisks {
+			// 磁盘数据为空的情况，校验盘数量加1
 			if disk == nil {
 				atomicParityDrives.Inc()
 				continue
 			}
+			// 磁盘为离线状态的情况，校验盘数量加1
 			if !disk.IsOnline() {
 				atomicParityDrives.Inc()
 				continue
@@ -772,6 +777,9 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 			wg.Add(1)
 			go func(disk StorageAPI) {
 				defer wg.Done()
+				// 通过数据盘对象的Disknfo方法获取数据盘的信息
+				// 数据获取失败，或者获取的数据中没有ID的情况，表示盘不存在或不可用
+				// 在上述情况下校验盘数量加1
 				di, err := disk.DiskInfo(ctx)
 				if err != nil || di.ID == "" {
 					atomicParityDrives.Inc()
@@ -780,43 +788,56 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 		}
 		wg.Wait()
 
+		// 从原子变量中读取校验盘数量
 		parityDrives = int(atomicParityDrives.Load())
+		// 如果校验盘数量大于等于磁盘总数的一半，则强制将校验盘数量设置为磁盘总数的一半
 		if parityDrives >= len(storageDisks)/2 {
 			parityDrives = len(storageDisks) / 2
 		}
+
+		// 如果初期设置的校验盘数量不等于运算后的校验盘数量，设置可选项。
 		if parityOrig != parityDrives {
 			opts.UserDefined[minIOErasureUpgraded] = strconv.Itoa(parityOrig) + "->" + strconv.Itoa(parityDrives)
 		}
 	}
+	// 用计算后的校验盘数量算出数据盘数量
 	dataDrives := len(storageDisks) - parityDrives
 
 	// we now know the number of blocks this object needs for data and parity.
 	// writeQuorum is dataBlocks + 1
+	// 如果数据盘数量和校验盘数量相等，则写仲裁数量为数据盘数量+1
 	writeQuorum := dataDrives
 	if dataDrives == parityDrives {
 		writeQuorum++
 	}
 
 	// Validate input data size and it can never be less than zero.
+	// 判断上传对象的大小，恒大于或等于0
 	if data.Size() < -1 {
 		logger.LogIf(ctx, errInvalidArgument, logger.Application)
 		return ObjectInfo{}, toObjectErr(errInvalidArgument)
 	}
 
 	// Initialize parts metadata
+	// 创建对象分片的元数据切片
 	partsMetadata := make([]FileInfo, len(storageDisks))
 
+	// 创建FileInfo的实例
 	fi := newFileInfo(pathJoin(bucket, object), dataDrives, parityDrives)
 	fi.VersionID = opts.VersionID
+	// 如果选项中表示为多版本，且版本ID为空字符串的场合，随机生成UUID并设置为版本ID
 	if opts.Versioned && fi.VersionID == "" {
 		fi.VersionID = mustGetUUID()
 	}
 
+	// 随机生成UUID作为文件的数据块路径
 	fi.DataDir = mustGetUUID()
+	// 临时变量，uniqueID和tempObj的值相同
 	uniqueID := mustGetUUID()
 	tempObj := uniqueID
 
 	// Initialize erasure metadata.
+	// 初始化对象分片的元数据切片
 	for index := range partsMetadata {
 		partsMetadata[index] = fi
 	}
