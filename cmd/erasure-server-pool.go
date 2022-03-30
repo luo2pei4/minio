@@ -1159,6 +1159,14 @@ func (z *erasureServerPools) ListObjects(ctx context.Context, bucket, prefix, ma
 		}
 	}
 
+	// 创建listPath的可选项实例，包括以下内容:
+	// 1、Bucket，桶名称
+	// 2、Prefix，前缀
+	// 3、Separator，分割符
+	// 4、Limit，最大返回记录数
+	// 5、Marker，标记，表示最近查到哪个对象的名称
+	// 6、InclDeleted，是否包括被删除，设置为true表示将保留最新版本为删除标记的所有条目
+	// 7、AskDisks，需要访问的磁盘数量。在没有设置相关环境变量的情况下，globalAPIConfig.getListQuorum()将返回默认值-1
 	opts := listPathOptions{
 		Bucket:      bucket,
 		Prefix:      prefix,

@@ -269,6 +269,7 @@ func (z *erasureServerPools) listMerged(ctx context.Context, o listPathOptions, 
 	// Ask all sets and merge entries.
 	listCtx, cancelList := context.WithCancel(ctx)
 	defer cancelList()
+	// 遍历所有服务池中的所有纠删集
 	for _, pool := range z.serverPools {
 		for _, set := range pool.sets {
 			wg.Add(1)

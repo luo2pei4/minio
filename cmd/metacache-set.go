@@ -536,12 +536,16 @@ func (er *erasureObjects) listPath(ctx context.Context, o listPathOptions, resul
 	defer close(results)
 	o.debugf(color.Green("listPath:")+" with options: %#v", o)
 
+	// 默认值为-1
 	askDisks := o.AskDisks
+	// 默认值的场合为-2
 	listingQuorum := o.AskDisks - 1
 	disks := er.getDisks()
 	var fallbackDisks []StorageAPI
 
 	// Special case: ask all disks if the drive count is 4
+	// 默认值情况下，将askDisks设置为当前纠删集中所有在线磁盘数量，listingQuorum为为当前纠删集中二分之一在线盘数量
+	// 例，为当前纠删集中所有在线盘数量为10，askDisks为10，listingQuorum为5
 	if askDisks <= 0 || er.setDriveCount == 4 {
 		askDisks = len(disks)          // with 'strict' quorum list on all online disks.
 		listingQuorum = len(disks) / 2 // keep this such that we can list all objects with different quorum ratio.
@@ -798,14 +802,19 @@ func listPathRaw(ctx context.Context, opts listPathRawOptions) (err error) {
 		}
 		return false
 	}
+	// 当前纠删集磁盘数量
 	askDisks := len(disks)
+	// 创建一个与当前纠删集磁盘数量相同的metacacheReader切片
 	readers := make([]*metacacheReader, askDisks)
+	// 遍历当前纠删集磁盘
 	for i := range disks {
 		r, w := io.Pipe()
 		// Make sure we close the pipe so blocked writes doesn't stay around.
 		defer r.CloseWithError(context.Canceled)
 
+		// 向metacacheReader切片中写入新创建的metacacheReader对象
 		readers[i] = newMetacacheReader(r)
+		// 获取磁盘的实例
 		d := disks[i]
 
 		// Send request to each disk.
@@ -859,29 +868,50 @@ func listPathRaw(ctx context.Context, opts listPathRawOptions) (err error) {
 		}()
 	}
 
+	// 创建一个metaCacheEntry切片，长度为当前纠删集磁盘数
 	topEntries := make(metaCacheEntries, len(readers))
+	// 创建一个error的切片，长度当前纠删集磁盘数
 	errs := make([]error, len(readers))
 	for {
 		// Get the top entry from each
 		var current metaCacheEntry
 		var atEOF, fnf, hasErr, agree int
+
+		// 先将metaCacheEntry切片填满
 		for i := range topEntries {
 			topEntries[i] = metaCacheEntry{}
 		}
 		if contextCanceled(ctx) {
 			return ctx.Err()
 		}
+
+		// 遍历reader的切片
+		// 因为reader是在上面的循环中通过walkDir方法写入pipe的，
+		// 所以这个这个循环外层用了一个无限制的for循环，直到从所有reader中
+		// 读完数据为止。
 		for i, r := range readers {
 			if errs[i] != nil {
 				hasErr++
 				continue
 			}
+
+			// 从pipe中读取数据数据
 			entry, err := r.peek()
+
 			switch err {
+
+			// 读到EOF，表示已经有一个盘已经读完了，然后对临时变量atEOF进行加1计数，并继续对下一块盘的数据
 			case io.EOF:
 				atEOF++
 				continue
+
+			// nil表示读取没有发生错误
 			case nil:
+
+			// 默认情况下判断错误类型，
+			// 如果是errFileNotFound/errVolumeNotFound/errUnformattedDisk/errDiskNotFound，
+			// 则对临时变量atEOF和fnf（file not found）进行加1计数并继续读取下一块盘的数据
+			// 如果不是上述错误类型，对临时变量hasErr进行加1计数，并继续读取下一块盘的数据
 			default:
 				switch err.Error() {
 				case errFileNotFound.Error(),
@@ -896,25 +926,38 @@ func listPathRaw(ctx context.Context, opts listPathRawOptions) (err error) {
 				errs[i] = err
 				continue
 			}
+
 			// If no current, add it.
+			// 没有发生读取错误的场合，判断临时变量current.name是否为空
+			// 如果为空，则表示在这个内层循环中有正常读到一块的数据
+			// 然后将读到的数据加入到metaCacheEntry切片中，同时将读到的数据赋值给current临时变量
+			// 再对临时变量agree进行加1计数，再继续读下一块盘
+			// 如果临时变量current.name不为空，表示在之前已经有一块正常读到了数据
 			if current.name == "" {
 				topEntries[i] = entry
 				current = entry
 				agree++
 				continue
 			}
+
 			// If exact match, we agree.
+			// 如果临时变量current与本次读到的数据相匹配
+			// 匹配正常的场合，将本次读到的数据加入到metaCacheEntry切片中
+			// 同时将临时变量agree进行加1计数，再继续读下一块盘
 			if _, ok := current.matches(&entry, true); ok {
 				topEntries[i] = entry
 				agree++
 				continue
 			}
 			// If only the name matches we didn't agree, but add it for resolution.
+			// 如果临时变量current与本次读到的数据有相同的对象名称
+			// 将本次读到的数据加入到metaCacheEntry切片中，再继续读下一块盘
 			if entry.name == current.name {
 				topEntries[i] = entry
 				continue
 			}
 			// We got different entries
+			// 如果临时变量current与本次读到的数据的对象名称不一致，再继续读下一块盘
 			if entry.name > current.name {
 				continue
 			}
