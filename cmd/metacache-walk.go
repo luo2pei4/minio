@@ -60,12 +60,14 @@ type WalkDirOptions struct {
 // Metadata has data stripped, if any.
 func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writer) (err error) {
 	// Verify if volume is valid and it exists.
+	// 拼接diskPath和桶名，获取桶的完整路径
 	volumeDir, err := s.getVolDir(opts.Bucket)
 	if err != nil {
 		return err
 	}
 
 	// Stat a volume entry.
+	// 通过系统调用判断桶路径能否访问
 	if err = Access(volumeDir); err != nil {
 		if osIsNotExist(err) {
 			return errVolumeNotFound
@@ -76,6 +78,7 @@ func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writ
 	}
 
 	// Use a small block size to start sending quickly
+	// 新建metacacheWriter对象，块大小为16KiB
 	w := newMetacacheWriter(wr, 16<<10)
 	w.reuseBlocks = true // We are not sharing results, so reuse buffers.
 	defer w.Close()
@@ -125,6 +128,7 @@ func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writ
 		}
 
 		s.walkMu.Lock()
+		// 返回指定路径下的所有文件夹名称，并且文件夹名后面加上左斜杠，无递归
 		entries, err := s.ListDir(ctx, opts.Bucket, current, -1)
 		s.walkMu.Unlock()
 		if err != nil {
@@ -142,6 +146,7 @@ func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writ
 			return nil
 		}
 		dirObjects := make(map[string]struct{})
+		// 默认情况下，该循环将entries中每个字符串最后的左斜杠去掉，只保留对象名称或次级目录名称
 		for i, entry := range entries {
 			if len(prefix) > 0 && !strings.HasPrefix(entry, prefix) {
 				// Do do not retain the file, since it doesn't
@@ -255,6 +260,7 @@ func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writ
 			}
 
 			s.walkReadMu.Lock()
+			// 读取对象的xl.meta文件
 			meta.metadata, err = s.readMetadata(ctx, pathJoin(volumeDir, meta.name, xlStorageFormatFile))
 			s.walkReadMu.Unlock()
 			switch {
