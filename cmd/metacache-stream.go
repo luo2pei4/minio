@@ -77,7 +77,9 @@ func newMetacacheWriter(out io.Writer, blockSize int) *metacacheWriter {
 		blockSize: blockSize,
 	}
 	w.creator = func() error {
+		// 创建一个用于压缩数据的Writer，指定压缩块的大小和并发写的数量
 		s2w := s2.NewWriter(out, s2.WriterBlockSize(blockSize), s2.WriterConcurrency(2))
+		// 创建一个messagePack的writer
 		w.mw = msgp.NewWriter(s2w)
 		w.creator = nil
 		if err := w.mw.WriteByte(metacacheStreamVersion); err != nil {
@@ -152,6 +154,8 @@ func (w *metacacheWriter) write(objs ...metaCacheEntry) error {
 // stream entries to the output.
 // The returned channel should be closed when done.
 // Any error is reported when closing the metacacheWriter.
+// 创建一个名为objs容量为100的chan，启动一个协程用于从objs通道中读取数据并写入
+// 方法返回objs通道
 func (w *metacacheWriter) stream() (chan<- metaCacheEntry, error) {
 	if w.creator != nil {
 		err := w.creator()

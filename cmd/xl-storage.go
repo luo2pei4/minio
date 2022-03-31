@@ -582,6 +582,7 @@ func (s *xlStorage) DiskInfo(context.Context) (info DiskInfo, err error) {
 // corresponding valid volume names on the backend in a platform
 // compatible way for all operating systems. If volume is not found
 // an error is generated.
+// 拼装磁盘路径和volume名称，生成完整的volume路径。
 func (s *xlStorage) getVolDir(volume string) (string, error) {
 	if volume == "" || volume == "." || volume == ".." {
 		return "", errVolumeNotFound
@@ -2061,6 +2062,13 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 		}
 	}()
 
+	// --------------------------------------------------------------------------------------------
+	logger.Info("srcVolume: %s", srcVolume)
+	logger.Info("srcPath: %s", srcPath)
+	logger.Info("dstVolume: %s", dstVolume)
+	logger.Info("dstPath: %s", dstPath)
+	// --------------------------------------------------------------------------------------------
+
 	srcVolumeDir, err := s.getVolDir(srcVolume)
 	if err != nil {
 		return err
@@ -2133,11 +2141,6 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	// 读取目标文件的xl.meta文件
 	dstBuf, err := xioutil.ReadFile(dstFilePath)
 	if err != nil {
-
-		// --------------------------------------------------------------------------------------------
-		logger.Info("read xl.meta: %s", err.Error())
-		// --------------------------------------------------------------------------------------------
-
 		// handle situations when dstFilePath is 'file'
 		// for example such as someone is trying to
 		// upload an object such as `prefix/object/xl.meta`
@@ -2206,12 +2209,6 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 			currentDataPath := pathJoin(dstVolumeDir, dstPath)
 			entries, err := readDirN(currentDataPath, 1)
 
-			// --------------------------------------------------------------------------------------------
-			if err != nil {
-				logger.Info("readDirN: %s", err.Error())
-			}
-			// --------------------------------------------------------------------------------------------
-
 			if err != nil && err != errFileNotFound {
 				return osErrToFileErr(err)
 			}
@@ -2228,11 +2225,6 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	}
 
 	legacyDataPath := pathJoin(dstVolumeDir, dstPath, legacyDataDir)
-
-	// --------------------------------------------------------------------------------------------
-	logger.Info("legacyDataPath: %s", legacyDataPath)
-	// --------------------------------------------------------------------------------------------
-
 	if legacyPreserved {
 		// Preserve all the legacy data, could be slow, but at max there can be 10,000 parts.
 		currentDataPath := pathJoin(dstVolumeDir, dstPath)
@@ -2267,13 +2259,6 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	if fi.VersionID == "" {
 		// return the latest "null" versionId info
 		ofi, err := xlMeta.ToFileInfo(dstVolume, dstPath, nullVersionID)
-
-		// --------------------------------------------------------------------------------------------
-		if err != nil {
-			logger.Info("xlMeta.ToFileInfo: %s", err.Error())
-		}
-		// --------------------------------------------------------------------------------------------
-
 		if err == nil && !ofi.Deleted {
 			if xlMeta.SharedDataDirCountStr(nullVersionID, ofi.DataDir) == 0 {
 				// Purge the destination path as we are not preserving anything
@@ -2300,11 +2285,6 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	healing := fi.XLV1 && fi.DataDir != legacyDataDir
 
 	if err = xlMeta.AddVersion(fi); err != nil {
-
-		// --------------------------------------------------------------------------------------------
-		logger.Info("xlMeta.AddVersion: %s", err.Error())
-		// --------------------------------------------------------------------------------------------
-
 		if legacyPreserved {
 			// Any failed rename calls un-roll previous transaction.
 			s.deleteFile(dstVolumeDir, legacyDataPath, true)
@@ -2325,11 +2305,6 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 
 	if srcDataPath != "" {
 		if err = s.WriteAll(ctx, srcVolume, pathJoin(srcPath, xlStorageFormatFile), dstBuf); err != nil {
-
-			// --------------------------------------------------------------------------------------------
-			logger.Info("xlStorage WriteAll failed: %s", err.Error())
-			// --------------------------------------------------------------------------------------------
-
 			if legacyPreserved {
 				// Any failed rename calls un-roll previous transaction.
 				s.deleteFile(dstVolumeDir, legacyDataPath, true)
@@ -2339,11 +2314,6 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 
 		// renameAll only for objects that have xl.meta not saved inline.
 		if len(fi.Data) == 0 && fi.Size > 0 {
-
-			// --------------------------------------------------------------------------------------------
-			logger.Info("renameAll only for objects that have xl.meta not saved inline.")
-			// --------------------------------------------------------------------------------------------
-
 			s.moveToTrash(dstDataPath, true)
 			if healing {
 				// If we are healing we should purge any legacyDataPath content,
@@ -2362,17 +2332,7 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 		}
 
 		// Commit meta-file
-
-		// --------------------------------------------------------------------------------------------
-		logger.Info("Commit meta-file")
-		// --------------------------------------------------------------------------------------------
-
 		if err = renameAll(srcFilePath, dstFilePath); err != nil {
-
-			// --------------------------------------------------------------------------------------------
-			logger.Info("Commit meta-file renameAll incorrect: %s", err.Error())
-			// --------------------------------------------------------------------------------------------
-
 			if legacyPreserved {
 				// Any failed rename calls un-roll previous transaction.
 				s.deleteFile(dstVolumeDir, legacyDataPath, true)

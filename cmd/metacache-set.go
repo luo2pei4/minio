@@ -808,7 +808,13 @@ func listPathRaw(ctx context.Context, opts listPathRawOptions) (err error) {
 	readers := make([]*metacacheReader, askDisks)
 	// 遍历当前纠删集磁盘
 	for i := range disks {
+
+		// 创建一个通道，返回r（PipeReader）和w（PipeWriter）
+		// r被用于创建metacacheReader
+		// w被作为参数传入WalkDir方法，用于写入指定路径下的xl.meta文件
+		// 写入操作在下面的协程中进行
 		r, w := io.Pipe()
+
 		// Make sure we close the pipe so blocked writes doesn't stay around.
 		defer r.CloseWithError(context.Canceled)
 
@@ -887,8 +893,7 @@ func listPathRaw(ctx context.Context, opts listPathRawOptions) (err error) {
 
 		// 遍历reader的切片
 		// 因为reader是在上面的循环中通过walkDir方法写入pipe的，
-		// 所以这个这个循环外层用了一个无限制的for循环，直到从所有reader中
-		// 读完数据为止。
+		// 所以这个这个循环外层用了一个无限制的for循环，直到从所有reader中读完数据为止。
 		for i, r := range readers {
 			if errs[i] != nil {
 				hasErr++

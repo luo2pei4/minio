@@ -79,6 +79,8 @@ func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writ
 
 	// Use a small block size to start sending quickly
 	// 新建metacacheWriter对象，块大小为16KiB
+	// metacacheWriter是个包装类，里面封装了传入的Writer
+	// 同时还定义了metacacheWriter的creator方法属性
 	w := newMetacacheWriter(wr, 16<<10)
 	w.reuseBlocks = true // We are not sharing results, so reuse buffers.
 	defer w.Close()
