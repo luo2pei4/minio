@@ -115,6 +115,18 @@ func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writ
 	prefix := opts.FilterPrefix
 	var scanDir func(path string) error
 
+	fmt.Printf("opts.FilterPrefix -> prefix: %s\n", prefix)
+
+	// 关于current的取值，用下面的例子进行说明，例：
+	// 桶		bkt
+	// path1	 ┖ aaa
+	// path2        ┖ bbb
+	// path3           ┖ ccc
+	// 下面是进入各个path的current值
+	// 桶:		空字符串
+	// path1:	aaa/
+	// path2:	aaa/bbb/
+	// path3:	aaa/bbb/ccc/
 	scanDir = func(current string) error {
 		// Skip forward, if requested...
 		forward := ""
@@ -130,7 +142,8 @@ func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writ
 		}
 
 		s.walkMu.Lock()
-		// 返回指定路径下的所有文件夹名称，并且文件夹名后面加上左斜杠，无递归
+		// 返回指定路径下的所有文件夹名称，并且文件夹名后面加上左斜杠，无递归，返回结果集按创建时间升序排序
+		// 例： entries: [go1.17.7.linux-amd64.tar.gz/ uploadTestFile2M/ renameData.txt/ mc/ aaaaaa/ uploadTestFile15b/]
 		entries, err := s.ListDir(ctx, opts.Bucket, current, -1)
 		s.walkMu.Unlock()
 		if err != nil {
@@ -171,6 +184,7 @@ func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writ
 					continue
 				}
 				// Trim slash, since we don't know if this is folder or object.
+				// 删除字符串的最后一个左斜杠
 				entries[i] = entries[i][:len(entry)-1]
 				continue
 			}
@@ -262,7 +276,7 @@ func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writ
 			}
 
 			s.walkReadMu.Lock()
-			// 读取对象的xl.meta文件
+			// 读取对象的xl.meta文件，将文件内容写入metaCacheEntry结构体的metadata属性
 			meta.metadata, err = s.readMetadata(ctx, pathJoin(volumeDir, meta.name, xlStorageFormatFile))
 			s.walkReadMu.Unlock()
 			switch {
@@ -271,8 +285,10 @@ func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writ
 				if isDirObj {
 					meta.name = strings.TrimSuffix(meta.name, globalDirSuffixWithSlash) + slashSeparator
 				}
+				// 将数据推入stream方法返回的协程中，由stream中启动的协程进行处理
 				out <- meta
 			case osIsNotExist(err), isSysErrIsDir(err):
+				// 无法读取的情况，尝试读取老版本的元数据文件xl.json，读取成功的场合将数据推入stream方法返回的协程中
 				meta.metadata, err = xioutil.ReadFile(pathJoin(volumeDir, meta.name, xlStorageFormatFileV1))
 				if err == nil {
 					// It was an object
@@ -283,6 +299,9 @@ func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writ
 				// NOT an object, append to stack (with slash)
 				// If dirObject, but no metadata (which is unexpected) we skip it.
 				if !isDirObj {
+					// pathJoin(volumeDir, meta.name+slashSeparator 返回对象文件夹的完整路径
+					// 判断指定文件夹下面是否只有文件夹，如果全是文件夹表明该文件夹是次级目录
+					// 如果指定文件夹下面是否只有文件夹，将该文件夹写入dirStack变量
 					if !isDirEmpty(pathJoin(volumeDir, meta.name+slashSeparator)) {
 						dirStack = append(dirStack, meta.name+slashSeparator)
 					}
@@ -295,9 +314,12 @@ func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writ
 		}
 
 		// If directory entry left on stack, pop it now.
+		// 遍历dirStack
 		for len(dirStack) > 0 {
 			pop := dirStack[len(dirStack)-1]
+			// 将次级目录的数据推入stream方法返回的协程中
 			out <- metaCacheEntry{name: pop}
+			// 如果查询选项中设置有递归，则递归调用scanDir
 			if opts.Recursive {
 				// Scan folder we found. Should be in correct sort order where we are.
 				logger.LogIf(ctx, scanDir(pop))

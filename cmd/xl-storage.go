@@ -404,6 +404,7 @@ func (s *xlStorage) readMetadataWithDMTime(ctx context.Context, itemPath string)
 			Err:  syscall.EISDIR,
 		}
 	}
+	// 读取xl.meta文件
 	buf, err := readXLMetaNoData(f, stat.Size())
 	return buf, stat.ModTime().UTC(), err
 }
