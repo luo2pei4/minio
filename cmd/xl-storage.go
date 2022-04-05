@@ -2064,10 +2064,10 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	}()
 
 	// --------------------------------------------------------------------------------------------
-	logger.Info("srcVolume: %s", srcVolume)
-	logger.Info("srcPath: %s", srcPath)
-	logger.Info("dstVolume: %s", dstVolume)
-	logger.Info("dstPath: %s", dstPath)
+	// logger.Info("srcVolume: %s", srcVolume)
+	// logger.Info("srcPath: %s", srcPath)
+	// logger.Info("dstVolume: %s", dstVolume)
+	// logger.Info("dstPath: %s", dstPath)
 	// --------------------------------------------------------------------------------------------
 
 	srcVolumeDir, err := s.getVolDir(srcVolume)
@@ -2130,13 +2130,13 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	}
 
 	// --------------------------------------------------------------------------------------------
-	logger.Info("srcVolumeDir: %s", srcVolumeDir)
-	logger.Info("dstVolumeDir: %s", dstVolumeDir)
-	logger.Info("srcFilePath: %s", srcFilePath)
-	logger.Info("dstFilePath: %s", dstFilePath)
-	logger.Info("srcDataPath: %s", srcDataPath)
-	logger.Info("dstDataPath: %s", dstDataPath)
-	logger.Info("dataDir: %s", dataDir)
+	// logger.Info("srcVolumeDir: %s", srcVolumeDir)
+	// logger.Info("dstVolumeDir: %s", dstVolumeDir)
+	// logger.Info("srcFilePath: %s", srcFilePath)
+	// logger.Info("dstFilePath: %s", dstFilePath)
+	// logger.Info("srcDataPath: %s", srcDataPath)
+	// logger.Info("dstDataPath: %s", dstDataPath)
+	// logger.Info("dataDir: %s", dataDir)
 	// --------------------------------------------------------------------------------------------
 
 	// 读取目标文件的xl.meta文件

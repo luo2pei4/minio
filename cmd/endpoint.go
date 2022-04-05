@@ -73,6 +73,7 @@ func (endpoint Endpoint) String() string {
 }
 
 // Type - returns type of endpoint.
+// 判断Host字段是否为空。如果为空，则是PathEndpointType，非空则是URLEndpointType
 func (endpoint Endpoint) Type() EndpointType {
 	if endpoint.Host == "" {
 		return PathEndpointType
@@ -327,7 +328,7 @@ func (l EndpointServerPools) Hostnames() []string {
 // hostsSorted will return all hosts found.
 // The LOCAL host will be nil, but the indexes of all hosts should
 // remain consistent across the cluster.
-// 返回排序后的其他节点的host切片（不含local节点）
+// 返回排序后的其他节点的host切片，local节点的值在切片内为nil
 func (l EndpointServerPools) hostsSorted() []*xnet.Host {
 	peers, localPeer := l.peers()
 	// 排序
@@ -351,7 +352,7 @@ func (l EndpointServerPools) hostsSorted() []*xnet.Host {
 
 // peers will return all peers, including local.
 // The local peer is returned as a separate string.
-// 返回所有节点信息的切片（含本机节点）和本机节点信息
+// 返回所有节点信息的切片（含本机节点）和本机的Host(IP + Port)
 func (l EndpointServerPools) peers() (peers []string, local string) {
 	allSet := set.NewStringSet()
 	for _, ep := range l {
@@ -361,6 +362,7 @@ func (l EndpointServerPools) peers() (peers []string, local string) {
 			}
 
 			peer := endpoint.Host
+			// 当IsLocal属性的值为true，再判断host的端口号是否与设定全局端口相同
 			if endpoint.IsLocal {
 				if _, port := mustSplitHostPort(peer); port == globalMinioPort {
 					local = peer

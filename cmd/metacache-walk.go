@@ -115,7 +115,7 @@ func (s *xlStorage) WalkDir(ctx context.Context, opts WalkDirOptions, wr io.Writ
 	prefix := opts.FilterPrefix
 	var scanDir func(path string) error
 
-	fmt.Printf("opts.FilterPrefix -> prefix: %s\n", prefix)
+	// fmt.Printf("opts.FilterPrefix -> prefix: %s\n", prefix)
 
 	// 关于current的取值，用下面的例子进行说明，例：
 	// 桶		bkt
