@@ -476,6 +476,7 @@ func (sys *BucketMetadataSys) load(ctx context.Context, buckets []BucketInfo, ob
 }
 
 // Reset the state of the BucketMetadataSys.
+// 调用内置函数delete，按key（桶名称）清空BucketMetadataSys中所有桶的元数据
 func (sys *BucketMetadataSys) Reset() {
 	sys.Lock()
 	for k := range sys.metadataMap {
@@ -485,6 +486,8 @@ func (sys *BucketMetadataSys) Reset() {
 }
 
 // NewBucketMetadataSys - creates new policy system.
+// 创建BucketMetadataSys结构体的对象并返回指针
+// BucketMetadataSys内采用map的形式保存了所有桶的元数据
 func NewBucketMetadataSys() *BucketMetadataSys {
 	return &BucketMetadataSys{
 		metadataMap: make(map[string]BucketMetadata),

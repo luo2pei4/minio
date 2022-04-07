@@ -227,6 +227,7 @@ func serverHandleEnvVars() {
 var globalHealStateLK sync.RWMutex
 
 func initAllSubsystems() {
+	// 纠删和集群模式下，globalIsErasure为true
 	if globalIsErasure {
 		globalHealStateLK.Lock()
 		// New global heal state
