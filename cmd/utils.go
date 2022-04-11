@@ -972,6 +972,7 @@ func loadAndResetRPCNetworkErrsCounter() uint64 {
 }
 
 // Helper method to return total number of nodes in cluster
+// 返回节点数量
 func totalNodeCount() uint64 {
 	peers, _ := globalEndpoints.peers()
 	totalNodesCount := uint64(len(peers))

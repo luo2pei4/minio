@@ -59,6 +59,7 @@ func (sys *PolicySys) IsAllowed(args policy.Args) bool {
 }
 
 // NewPolicySys - creates new policy system.
+// 创建PolicySys结构体的对象并返回对象指针
 func NewPolicySys() *PolicySys {
 	return &PolicySys{}
 }

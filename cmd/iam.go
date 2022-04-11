@@ -1596,6 +1596,8 @@ func (sys *IAMSys) EnableLDAPSys() {
 }
 
 // NewIAMSys - creates new config system object.
+// 创建IAMSys结构体的对象，并返回指针
+// 默认制定用户系统类型为“MinIOUsersSys”，并创建一个chan
 func NewIAMSys() *IAMSys {
 	return &IAMSys{
 		usersSysType: MinIOUsersSysType,

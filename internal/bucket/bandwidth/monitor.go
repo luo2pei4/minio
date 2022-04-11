@@ -32,17 +32,19 @@ type throttle struct {
 }
 
 // Monitor holds the state of the global bucket monitor
+// Monitor结构体保存了全局的桶监视器的状态
 type Monitor struct {
 	tlock                 sync.RWMutex // mutex for bucketThrottle
 	bucketThrottle        map[string]*throttle
 	mlock                 sync.RWMutex                  // mutex for activeBuckets map
-	activeBuckets         map[string]*bucketMeasurement // Buckets with objects in flight
+	activeBuckets         map[string]*bucketMeasurement // Buckets with objects in flight 活动的桶信息
 	bucketMovingAvgTicker *time.Ticker                  // Ticker for calculating moving averages
 	ctx                   context.Context               // Context for generate
 	NodeCount             uint64
 }
 
 // NewMonitor returns a monitor with defaults.
+// 创建一个Monitor对象并启动一个EWMA追踪协程，该对象的主要作用对象为桶的带宽
 func NewMonitor(ctx context.Context, numNodes uint64) *Monitor {
 	m := &Monitor{
 		activeBuckets:         make(map[string]*bucketMeasurement),

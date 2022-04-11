@@ -243,6 +243,8 @@ func initAllSubsystems() {
 	globalNotificationSys = NewNotificationSys(globalEndpoints)
 
 	// Create new bucket metadata system.
+	// 当globalBucketMetadataSys为nil时，创建BucketMetadataSys结构体的对象并返回指针
+	// 如果不为nil时，重置globalBucketMetadataSys对象
 	if globalBucketMetadataSys == nil {
 		globalBucketMetadataSys = NewBucketMetadataSys()
 	} else {
@@ -251,18 +253,23 @@ func initAllSubsystems() {
 	}
 
 	// Create the bucket bandwidth monitor
+	// 创建全局的桶带宽监视器
 	globalBucketMonitor = bandwidth.NewMonitor(GlobalContext, totalNodeCount())
 
 	// Create a new config system.
+	// 创建全局的ConfigSys（空结构体）的对象的指针
 	globalConfigSys = NewConfigSys()
 
 	// Create new IAM system.
+	// 创建全局的IAM结构体对象 (Identity and Access Management: 身份识别与访问管理)
 	globalIAMSys = NewIAMSys()
 
 	// Create new policy system.
+	// 创建全局的PolicySys结构体对象，并返回指针
 	globalPolicySys = NewPolicySys()
 
 	// Create new lifecycle system.
+	// 创建全局的LifecycleSys结构体对象，并返回指针
 	globalLifecycleSys = NewLifecycleSys()
 
 	// Create new bucket encryption subsystem
