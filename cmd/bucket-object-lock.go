@@ -31,6 +31,7 @@ import (
 )
 
 // BucketObjectLockSys - map of bucket and retention configuration.
+// 桶和保留策略配置的map
 type BucketObjectLockSys struct{}
 
 // Get - Get retention configuration.

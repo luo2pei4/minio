@@ -27,6 +27,7 @@ import (
 )
 
 // BucketQuotaSys - map of bucket and quota configuration.
+// 桶和配额配置的map
 type BucketQuotaSys struct {
 	bucketStorageCache timedValue
 }

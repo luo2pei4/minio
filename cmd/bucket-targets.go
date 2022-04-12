@@ -40,6 +40,7 @@ const (
 )
 
 // BucketTargetSys represents bucket targets subsystem
+// 目标桶信息结构体
 type BucketTargetSys struct {
 	sync.RWMutex
 	arnRemotesMap map[string]*TargetClient

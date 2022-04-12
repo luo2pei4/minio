@@ -20,6 +20,7 @@ package cmd
 import "github.com/minio/minio/internal/bucket/versioning"
 
 // BucketVersioningSys - policy subsystem.
+// 桶版本配置相关
 type BucketVersioningSys struct{}
 
 // Enabled enabled versioning?

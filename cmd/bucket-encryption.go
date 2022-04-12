@@ -25,6 +25,7 @@ import (
 )
 
 // BucketSSEConfigSys - in-memory cache of bucket encryption config
+// 桶加密配置的内存缓存
 type BucketSSEConfigSys struct{}
 
 // NewBucketSSEConfigSys - Creates an empty in-memory bucket encryption configuration cache

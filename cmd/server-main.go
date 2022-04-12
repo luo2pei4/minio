@@ -273,25 +273,32 @@ func initAllSubsystems() {
 	globalLifecycleSys = NewLifecycleSys()
 
 	// Create new bucket encryption subsystem
+	// 创建BucketSSEConfigSys结构体（空结构体）对象，返回对象指针
 	globalBucketSSEConfigSys = NewBucketSSEConfigSys()
 
 	// Create new bucket object lock subsystem
+	// 创建BucketObjectLockSys结构体（空结构体）对象，返回对象指针
 	globalBucketObjectLockSys = NewBucketObjectLockSys()
 
 	// Create new bucket quota subsystem
+	// 创建BucketQuotaSys结构体对象，返回对象指针
 	globalBucketQuotaSys = NewBucketQuotaSys()
 
 	// Create new bucket versioning subsystem
 	if globalBucketVersioningSys == nil {
+		// 创建BucketVersioningSys结构体（空结构体）对象，返回对象指针
 		globalBucketVersioningSys = NewBucketVersioningSys()
 	} else {
+		// Reset方法没有实际内容
 		globalBucketVersioningSys.Reset()
 	}
 
 	// Create new bucket replication subsytem
+	// 创建BucketTargetSys结构体对象，返回对象指针
 	globalBucketTargetSys = NewBucketTargetSys()
 
 	// Create new ILM tier configuration subsystem
+	// 创建TierConfigMgr结构体对象，返回对象指针
 	globalTierConfigMgr = NewTierConfigMgr()
 }
 

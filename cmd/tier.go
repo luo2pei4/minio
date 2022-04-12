@@ -54,6 +54,7 @@ const (
 var tierConfigPath = path.Join(minioConfigPrefix, tierConfigFile)
 
 // TierConfigMgr holds the collection of remote tiers configured in this deployment.
+// TierConfigMgr结构体用于保持远端tiers的集合
 type TierConfigMgr struct {
 	sync.RWMutex `msg:"-"`
 	drivercache  map[string]WarmBackend `msg:"-"`
