@@ -429,6 +429,7 @@ func setDefaultCannedPolicies(policies map[string]PolicyDoc) {
 func (store *IAMStoreSys) LoadIAMCache(ctx context.Context) error {
 	newCache := newIamCache()
 
+	// 返回iamCache的指针
 	cache := store.lock()
 	defer store.unlock()
 

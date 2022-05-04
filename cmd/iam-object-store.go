@@ -87,8 +87,11 @@ func (iamOS *IAMObjectStore) getUsersSysType() UsersSysType {
 // location.
 //
 // 3. Migrate user identity json file to include version info.
+// config/iam/policydb/users
 func (iamOS *IAMObjectStore) migrateUsersConfigToV1(ctx context.Context) error {
 	basePrefix := iamConfigUsersPrefix
+	// listIAMConfigItems函数中调用了ObjectLayer中的Walk方法，并从通道中返回itemOrErr结构体。
+	// Walk方法用于遍历.minio.sys/config/iam/users路径下的所有文件
 	for item := range listIAMConfigItems(ctx, iamOS.objAPI, basePrefix) {
 		if item.Err != nil {
 			return item.Err
@@ -163,6 +166,7 @@ func (iamOS *IAMObjectStore) migrateUsersConfigToV1(ctx context.Context) error {
 
 func (iamOS *IAMObjectStore) migrateToV1(ctx context.Context) error {
 	var iamFmt iamFormat
+	// 路径为config/iam/format.json
 	path := getIAMFormatFilePath()
 	if err := iamOS.loadIAMConfig(ctx, &iamFmt, path); err != nil {
 		switch err {

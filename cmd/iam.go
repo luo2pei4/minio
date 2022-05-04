@@ -201,6 +201,7 @@ func (sys *IAMSys) Init(ctx context.Context, objAPI ObjectLayer, etcdClient *etc
 	sys.Lock()
 	defer sys.Unlock()
 
+	// IAM子系统，数据刷新间隔。默认设置5分钟
 	sys.iamRefreshInterval = iamRefreshInterval
 
 	// Initialize IAM store
@@ -212,6 +213,7 @@ func (sys *IAMSys) Init(ctx context.Context, objAPI ObjectLayer, etcdClient *etc
 	defer cancel()
 
 	// allocate dynamic timeout once before the loop
+	// 返回一个动态超时的结构体指针，超时时间5秒，最小3秒。
 	iamLockTimeout := newDynamicTimeout(5*time.Second, 3*time.Second)
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
