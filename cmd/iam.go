@@ -205,6 +205,7 @@ func (sys *IAMSys) Init(ctx context.Context, objAPI ObjectLayer, etcdClient *etc
 	sys.iamRefreshInterval = iamRefreshInterval
 
 	// Initialize IAM store
+	// 通过该方法，将ObjectLayer实例存入实现了IAMStorageAPI接口的实例
 	sys.initStore(objAPI, etcdClient)
 
 	retryCtx, cancel := context.WithCancel(ctx)
