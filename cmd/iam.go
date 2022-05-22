@@ -206,6 +206,7 @@ func (sys *IAMSys) Init(ctx context.Context, objAPI ObjectLayer, etcdClient *etc
 
 	// Initialize IAM store
 	// 通过该方法，将ObjectLayer实例存入实现了IAMStorageAPI接口的实例
+	// 非etcd客户端的场合，实例化IAMObjectStore结构体对象，将objAPI对象存入IAMObjectStore的objAPI属性
 	sys.initStore(objAPI, etcdClient)
 
 	retryCtx, cancel := context.WithCancel(ctx)
@@ -222,6 +223,7 @@ func (sys *IAMSys) Init(ctx context.Context, objAPI ObjectLayer, etcdClient *etc
 	// Migrate storage format if needed.
 	for {
 		// Hold the lock for migration only.
+		// 纠删模式下调用erasureServerPools的NewNSLock方法，将bucket为“.minio.sys”, 传入一个args为"config/iam.lock"。
 		txnLk := objAPI.NewNSLock(minioMetaBucket, minioConfigPrefix+"/iam.lock")
 
 		// let one of the server acquire the lock, if not let them timeout.

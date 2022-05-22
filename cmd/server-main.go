@@ -529,6 +529,7 @@ func serverMain(ctx *cli.Context) {
 		}
 	}
 
+	// 纠删模式下，返回erasureServerPools结构体实例
 	newObject, err := newObjectLayer(GlobalContext, globalEndpoints)
 	if err != nil {
 		logFatalErrs(err, Endpoint{}, true)
@@ -586,6 +587,7 @@ func serverMain(ctx *cli.Context) {
 
 	// Initialize users credentials and policies in background right after config has initialized.
 	// 初始化用户验证和策略
+	// 纠删模式下传入的objectLayer是erasureServerPools结构体实例，globalRefreshIAMInterval是刷新间隔。
 	go globalIAMSys.Init(GlobalContext, newObject, globalEtcdClient, globalRefreshIAMInterval)
 
 	// Background all other operations such as initializing bucket metadata etc.
