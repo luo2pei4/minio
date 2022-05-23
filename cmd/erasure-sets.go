@@ -604,6 +604,8 @@ func (s *erasureSets) NewNSLock(bucket string, objects ...string) RWLocker {
 	// 1、初始化IAM服务时将进入if分支
 	if len(objects) == 1 {
 		// 1、初始化IAM服务时objects[0]为"config/iam.lock", bucket为“.minio.sys”
+		//    getHashedSet方法通过计算传入的字符串得到一个任意Object的索引，并返回索引指向的Object
+		//
 		return s.getHashedSet(objects[0]).NewNSLock(bucket, objects...)
 	}
 	return s.getHashedSet("").NewNSLock(bucket, objects...)
