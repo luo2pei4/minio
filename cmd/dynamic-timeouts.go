@@ -46,6 +46,7 @@ func newDynamicTimeout(timeout, minimum time.Duration) *dynamicTimeout {
 	if timeout <= 0 || minimum <= 0 {
 		panic("newDynamicTimeout: negative or zero timeout")
 	}
+	// 最小值不能超过超时时间
 	if minimum > timeout {
 		minimum = timeout
 	}
