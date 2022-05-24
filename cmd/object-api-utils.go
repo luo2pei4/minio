@@ -231,6 +231,7 @@ func pathJoin(elem ...string) string {
 }
 
 // mustGetUUID - get a random UUID.
+// 获取随机的UUID
 func mustGetUUID() string {
 	u, err := uuid.NewRandom()
 	if err != nil {

@@ -63,6 +63,7 @@ func (l LockContext) Cancel() {
 }
 
 // newNSLock - return a new name space lock map.
+// 返回nsLockMap结构体实例的指针
 func newNSLock(isDistErasure bool) *nsLockMap {
 	nsMutex := nsLockMap{
 		isDistErasure: isDistErasure,

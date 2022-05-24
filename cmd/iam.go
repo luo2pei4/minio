@@ -224,6 +224,8 @@ func (sys *IAMSys) Init(ctx context.Context, objAPI ObjectLayer, etcdClient *etc
 	for {
 		// Hold the lock for migration only.
 		// 纠删模式下调用erasureServerPools的NewNSLock方法，将bucket为“.minio.sys”, 传入一个args为"config/iam.lock"。
+		// 分布式模式下返回distLockInstance结构体实例的指针，实例中包含erasureSets的GetLockers方法
+		// 非分布式模式下返回localLockInstance结构体实例的指针
 		txnLk := objAPI.NewNSLock(minioMetaBucket, minioConfigPrefix+"/iam.lock")
 
 		// let one of the server acquire the lock, if not let them timeout.
@@ -274,6 +276,7 @@ func (sys *IAMSys) Init(ctx context.Context, objAPI ObjectLayer, etcdClient *etc
 	}
 
 	// Load IAM data from storage.
+	// 调用Load方法加载IAM数据，包括用户（含服务账户）和权限数据。
 	for {
 		if err := sys.Load(retryCtx); err != nil {
 			if configRetriableErrors(err) {
@@ -320,6 +323,7 @@ func (sys *IAMSys) Init(ctx context.Context, objAPI ObjectLayer, etcdClient *etc
 	}
 
 	// Start watching changes to storage.
+	// 每隔5分钟加载一次IAM信息到内存中
 	go sys.watch(ctx)
 
 	// Load RoleARN
@@ -376,6 +380,7 @@ func (sys *IAMSys) watch(ctx context.Context) {
 	}
 
 	// Fall back to loading all items periodically
+	// 每隔5分钟加载一次IAM信息到内存中
 	ticker := time.NewTicker(sys.iamRefreshInterval)
 	defer ticker.Stop()
 	for {

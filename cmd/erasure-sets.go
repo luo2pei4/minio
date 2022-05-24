@@ -323,6 +323,7 @@ func (s *erasureSets) monitorAndConnectEndpoints(ctx context.Context, monitorInt
 	}
 }
 
+// GetLockers 传入set索引，通过copy方式返回指定set的locker切片
 func (s *erasureSets) GetLockers(setIndex int) func() ([]dsync.NetLocker, string) {
 	return func() ([]dsync.NetLocker, string) {
 		lockers := make([]dsync.NetLocker, len(s.erasureLockers[setIndex]))
@@ -387,6 +388,8 @@ func newErasureSets(ctx context.Context, endpoints PoolEndpoints, storageDisks [
 		poolIndex:          poolIdx,
 	}
 
+	// 创建nsLockMap结构体实例并返回指针
+	// 初始化的时候，所有erasureObjects对象的nsMutex属性的值都是这个指针
 	mutex := newNSLock(globalIsDistErasure)
 
 	// Number of buffers, max 2GB

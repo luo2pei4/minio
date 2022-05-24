@@ -426,7 +426,9 @@ func setDefaultCannedPolicies(policies map[string]PolicyDoc) {
 
 // LoadIAMCache reads all IAM items and populates a new iamCache object and
 // replaces the in-memory cache object.
+// 加载IAMCache数据，包括用户数据，权限数据
 func (store *IAMStoreSys) LoadIAMCache(ctx context.Context) error {
+	// 初始化iamCache结构体
 	newCache := newIamCache()
 
 	// 返回iamCache的指针
