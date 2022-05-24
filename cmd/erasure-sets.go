@@ -411,7 +411,8 @@ func newErasureSets(ctx context.Context, endpoints PoolEndpoints, storageDisks [
 		s.erasureDisks[i] = make([]StorageAPI, setDriveCount)
 	}
 
-	// erasureLockers是个临时变量，用于保存每块盘的locker实例
+	// erasureLockers是个临时变量，用于保存每个节点的locker实例
+	// endpoint.Host example "192.168.56.101:9000"
 	erasureLockers := map[string]dsync.NetLocker{}
 	for _, endpoint := range endpoints.Endpoints {
 		if _, ok := erasureLockers[endpoint.Host]; !ok {
@@ -423,6 +424,7 @@ func newErasureSets(ctx context.Context, endpoints PoolEndpoints, storageDisks [
 	}
 
 	// 将erasureLockers临时变量中的locker添加到erasureSet的erasureLockers变量中
+	// set有跨节点的情况，下面的循环就是按set保存locker
 	for i := 0; i < setCount; i++ {
 		lockerEpSet := set.NewStringSet()
 		for j := 0; j < setDriveCount; j++ {

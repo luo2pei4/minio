@@ -146,7 +146,8 @@ func newErasureServerPools(ctx context.Context, endpointServerPools EndpointServ
 }
 
 func (z *erasureServerPools) NewNSLock(bucket string, objects ...string) RWLocker {
-	// 单集群的场合，一般只有一个serverPool
+	// 单集群的场合，只有一个serverPool。
+	// z.serverPools[0]实际上是获取一个pool的所有set的信息
 	return z.serverPools[0].NewNSLock(bucket, objects...)
 }
 
