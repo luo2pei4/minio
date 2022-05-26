@@ -206,7 +206,8 @@ func (sys *IAMSys) Init(ctx context.Context, objAPI ObjectLayer, etcdClient *etc
 
 	// Initialize IAM store
 	// 通过该方法，将ObjectLayer实例存入实现了IAMStorageAPI接口的实例
-	// 非etcd客户端的场合，实例化IAMObjectStore结构体对象，将objAPI对象存入IAMObjectStore的objAPI属性
+	// 非etcd客户端的场合，实例化IAMObjectStore结构体对象，将objAPI对象存入IAMObjectStore的store属性
+	// 主要设置IAMSys的iamCache和store属性
 	sys.initStore(objAPI, etcdClient)
 
 	retryCtx, cancel := context.WithCancel(ctx)
