@@ -214,6 +214,7 @@ func GenerateCredentials() (accessKey, secretKey string, err error) {
 	for i := 0; i < accessKeyMaxLen; i++ {
 		keyBytes[i] = alphaNumericTable[keyBytes[i]%alphaNumericTableLen]
 	}
+	// 生成一个20位的随机数，只包含数字和大写英文字母
 	accessKey = string(keyBytes)
 
 	// Generate secret key.
@@ -222,6 +223,7 @@ func GenerateCredentials() (accessKey, secretKey string, err error) {
 		return "", "", err
 	}
 
+	// 生成一个40位的随机字符串，如果有“/”，则替换为“+”
 	secretKey = strings.ReplaceAll(string([]byte(base64.StdEncoding.EncodeToString(keyBytes))[:secretKeyMaxLen]),
 		"/", "+")
 
@@ -252,6 +254,7 @@ func CreateNewCredentialsWithMetadata(accessKey, secretKey string, m map[string]
 	cred.SecretKey = secretKey
 	cred.Status = AccountOn
 
+	// 用户密码为空的情况，直接设置Expiration后返回，不生成token
 	if tokenSecret == "" {
 		cred.Expiration = timeSentinel
 		return cred, nil
@@ -263,6 +266,7 @@ func CreateNewCredentialsWithMetadata(accessKey, secretKey string, m map[string]
 	}
 	cred.Expiration = time.Unix(expiry, 0).UTC()
 
+	// 生成一个Session token
 	cred.SessionToken, err = JWTSignWithAccessKey(cred.AccessKey, m, tokenSecret)
 	if err != nil {
 		return cred, err

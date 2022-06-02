@@ -258,6 +258,7 @@ func (sts *stsAPIHandlers) AssumeRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	secret := globalActiveCred.SecretKey
+	// 在这个方法中获取了SessionToken
 	cred, err := auth.GetNewCredentialsWithMetadata(m, secret)
 	if err != nil {
 		writeSTSErrorResponse(ctx, w, true, ErrSTSInternalError, err)
