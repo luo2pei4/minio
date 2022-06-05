@@ -138,6 +138,25 @@ func possibleSetCountsWithSymmetry(setCounts []uint64, argPatterns []ellipses.Ar
 // on each index, this function also determines the final set size
 // The final set size has the affinity towards choosing smaller
 // indexes (total sets)
+// parameters example:
+// args: ["http://192.168.1.{1...4}/data/minio{1...8}"]
+// totalSizes: [32]
+// customSetDriveCount: 0
+// argPatterns:
+//   [
+//       [
+//           {
+//               Prefix: "",
+//               Suffix: "",
+//               Seq: {"1","2","3","4","5","6","7","8"}
+//           },
+//           {
+//               Prefix: "http://192.168.1.",
+//               Suffix: "/data/minio",
+//               Seq: {"1","2","3","4"}
+//           }
+//       ]
+//   ]
 func getSetIndexes(args []string, totalSizes []uint64, customSetDriveCount uint64, argPatterns []ellipses.ArgPattern) (setIndexes [][]uint64, err error) {
 	if len(totalSizes) == 0 || len(args) == 0 {
 		return nil, errInvalidArgument
@@ -266,7 +285,6 @@ func getTotalSizes(argPatterns []ellipses.ArgPattern) []uint64 {
 // by the object layer for initializing itself.
 func parseEndpointSet(customSetDriveCount uint64, args ...string) (ep endpointSet, err error) {
 	// 创建基于传入参数的切片，目前来看长度和容量只有1
-	// 理论上传入了几个server pool的配置，就创建长度为几的切片。 TODO 待验证
 	argPatterns := make([]ellipses.ArgPattern, len(args))
 	for i, arg := range args {
 
@@ -374,8 +392,10 @@ func GetAllSets(args ...string) ([][]string, error) {
 		customSetDriveCount = uint64(driveCount)
 	}
 
+	fmt.Printf("args: %v, len: %d\n", args, len(args))
+
 	var setArgs [][]string
-	// 传入参数中带有省略号的场合
+	// 传入参数中不带省略号的场合
 	if !ellipses.HasEllipses(args...) {
 		var setIndexes [][]uint64
 		// Check if we have more one args.
@@ -395,8 +415,8 @@ func GetAllSets(args ...string) ([][]string, error) {
 		}
 		setArgs = s.Get()
 
-		// 传入参数中不带省略号的场合
 	} else {
+		// 传入参数中带有省略号的场合
 		// 解析传入参数
 		s, err := parseEndpointSet(customSetDriveCount, args...)
 		if err != nil {
@@ -459,7 +479,7 @@ func createServerEndpoints(serverAddr string, args ...string) (
 
 	// 参数中有省略号的情况
 	// args是server启动时候传入的参数，例:
-	//     http://192.168.50.{1...4}/data/minio{1...4}
+	//     http://192.168.1.{1...4}/data/minio{1...8}
 	for _, arg := range args {
 
 		// 将省略号解析出来, 生成一个二维slice
@@ -515,6 +535,8 @@ func createServerEndpoints(serverAddr string, args ...string) (
 		if err != nil {
 			return nil, -1, err
 		}
+
+		fmt.Printf("setArgs: %v\n", setArgs)
 
 		// 根据解析出来的endpoint名称，创建endpoint的实例和安装类型。
 		endpointList, gotSetupType, err := CreateEndpoints(serverAddr, foundPrevLocal, setArgs...)
