@@ -682,6 +682,7 @@ func initStorageDisksWithErrorsWithoutHealthCheck(endpoints Endpoints) ([]Storag
 // Errors are returned for each endpoint with matching index.
 func initStorageDisksWithErrors(endpoints Endpoints) ([]StorageAPI, []error) {
 	// Bootstrap disks.
+	// 根据单个set的endpoint切片长度创建一个StorageAPI的切片
 	storageDisks := make([]StorageAPI, len(endpoints))
 	g := errgroup.WithNErrs(len(endpoints))
 	for index := range endpoints {
@@ -827,8 +828,11 @@ func getDefaultParityBlocks(drive int) int {
 // ecDrivesNoConfig returns the erasure coded drives in a set if no config has been set.
 // It will attempt to read it from env variable and fall back to drives/2.
 func ecDrivesNoConfig(setDriveCount int) int {
+	// 返回storage class的配置信息
 	sc, _ := storageclass.LookupConfig(config.KVS{}, setDriveCount)
+	// 从storage class的配置信息中获取standard storage class的校验盘的数量
 	ecDrives := sc.GetParityForSC(storageclass.STANDARD)
+	// 校验盘数量等于0的情况，一般是没有在环境变量中设置EC配额的默认情况
 	if ecDrives <= 0 {
 		ecDrives = getDefaultParityBlocks(setDriveCount)
 	}

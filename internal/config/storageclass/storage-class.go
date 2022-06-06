@@ -180,6 +180,7 @@ func ValidateParity(ssParity, setDriveCount int) error {
 func validateParity(ssParity, rrsParity, setDriveCount int) (err error) {
 	// SS parity disks should be greater than or equal to minParityDisks.
 	// Parity below minParityDisks is not supported.
+	// 无论是standard storage class还是Reduced redundancy storage class都不能小于2块盘作为校验盘
 	if ssParity > 0 && ssParity < minParityDisks {
 		return fmt.Errorf("Standard storage class parity %d should be greater than or equal to %d",
 			ssParity, minParityDisks)
@@ -191,6 +192,7 @@ func validateParity(ssParity, rrsParity, setDriveCount int) (err error) {
 		return fmt.Errorf("Reduced redundancy storage class parity %d should be greater than or equal to %d", rrsParity, minParityDisks)
 	}
 
+	// 无论是standard storage class还是Reduced redundancy storage class的校验盘数不能大于1/2纠删集盘数
 	if ssParity > setDriveCount/2 {
 		return fmt.Errorf("Standard storage class parity %d should be less than or equal to %d", ssParity, setDriveCount/2)
 	}
@@ -199,6 +201,8 @@ func validateParity(ssParity, rrsParity, setDriveCount int) (err error) {
 		return fmt.Errorf("Reduced redundancy storage class parity %d should be less than  or equal to %d", rrsParity, setDriveCount/2)
 	}
 
+	// standard storage class和Reduced redundancy storage class同时设置的场合，
+	// standard storage class校验盘的数量不能小于Reduced redundancy storage class校验盘的数量
 	if ssParity > 0 && rrsParity > 0 {
 		if ssParity > 0 && ssParity < rrsParity {
 			return fmt.Errorf("Standard storage class parity disks %d should be greater than or equal to Reduced redundancy storage class parity disks %d", ssParity, rrsParity)
@@ -249,6 +253,7 @@ func Enabled(kvs config.KVS) bool {
 }
 
 // LookupConfig - lookup storage class config and override with valid environment settings if any.
+// 从环境变量中读取EC配比，如果环境变量中没有值，返回默认2，表示两块盘作为基偶校验盘
 func LookupConfig(kvs config.KVS, setDriveCount int) (cfg Config, err error) {
 	cfg = Config{}
 
