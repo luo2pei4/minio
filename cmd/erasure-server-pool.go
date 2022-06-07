@@ -75,6 +75,13 @@ func newErasureServerPools(ctx context.Context, endpointServerPools EndpointServ
 	var localDrives []StorageAPI
 	local := endpointServerPools.FirstLocal()
 	for i, ep := range endpointServerPools {
+
+		// small file start
+		// set drive type
+		// 0:HDD 1:SSD
+		z.serverPools[i].driveType = i
+		// small file end
+
 		// If storage class is not set during startup, default values are used
 		// -- Default for Reduced Redundancy Storage class is, parity = 2
 		// -- Default for Standard Storage class is, parity = 2 - disks 4, 5
@@ -146,7 +153,7 @@ func newErasureServerPools(ctx context.Context, endpointServerPools EndpointServ
 }
 
 func (z *erasureServerPools) NewNSLock(bucket string, objects ...string) RWLocker {
-	// 单集群的场合，只有一个serverPool。
+	// 单集群的场合，一般只有一个serverPool。
 	// z.serverPools[0]实际上是获取一个pool的所有set的信息
 	return z.serverPools[0].NewNSLock(bucket, objects...)
 }

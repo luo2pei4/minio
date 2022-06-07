@@ -95,6 +95,10 @@ type erasureSets struct {
 	disksStorageInfoCache timedValue
 
 	lastConnectDisksOpTime time.Time
+
+	// small file start
+	driveType int
+	// small file end
 }
 
 // Return false if endpoint is not connected or has been reconnected after last check
