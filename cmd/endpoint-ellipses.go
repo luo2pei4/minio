@@ -381,16 +381,28 @@ func parseEndpointSet(customSetDriveCount uint64, args ...string) (ep endpointSe
 // specific set size.
 // For example: {1...64} is divided into 4 sets each of size 16.
 // This applies to even distributed setup syntax as well.
-func GetAllSets(args ...string) ([][]string, error) {
-	var customSetDriveCount uint64
+// small file start
+func GetAllSets(driveType int, args ...string) ([][]string, error) {
+	var (
+		customSetDriveCount uint64
+		temp                string
+	)
 	// 从环境变量MINIO_ERASURE_SET_DRIVE_COUNT中获取每个纠删集有多少块盘
-	if v := env.Get(EnvErasureSetDriveCount, ""); v != "" {
-		driveCount, err := strconv.Atoi(v)
+	// small file start
+	switch driveType {
+	case driveTypeHDD:
+		temp = env.Get(EnvErasureSetDriveCount, "")
+	case driveTypeSSD:
+		temp = env.Get(EnvErasureSSDSetDriveCount, "")
+	}
+	if temp != "" {
+		driveCount, err := strconv.Atoi(temp)
 		if err != nil {
 			return nil, config.ErrInvalidErasureSetSize(err)
 		}
 		customSetDriveCount = uint64(driveCount)
 	}
+	// small file end
 
 	fmt.Printf("args: %v, len: %d\n", args, len(args))
 
@@ -438,9 +450,14 @@ func GetAllSets(args ...string) ([][]string, error) {
 	return setArgs, nil
 }
 
+// samll file end
+
 // Override set drive count for manual distribution.
 const (
 	EnvErasureSetDriveCount = "MINIO_ERASURE_SET_DRIVE_COUNT"
+	// small file start
+	EnvErasureSSDSetDriveCount = "MINIO_ERASURE_SSD_SET_DRIVE_COUNT"
+	// small file end
 )
 
 var globalCustomErasureDriveCount = false
@@ -456,7 +473,7 @@ func createServerEndpoints(serverAddr string, args ...string) (
 
 	// 参数中没有省略号的情况
 	if !ellipses.HasEllipses(args...) {
-		setArgs, err := GetAllSets(args...)
+		setArgs, err := GetAllSets(driveTypeHDD, args...)
 		if err != nil {
 			return nil, -1, err
 		}
@@ -480,7 +497,7 @@ func createServerEndpoints(serverAddr string, args ...string) (
 	// 参数中有省略号的情况
 	// args是server启动时候传入的参数，例:
 	//     http://192.168.1.{1...4}/data/minio{1...8}
-	for _, arg := range args {
+	for i, arg := range args {
 
 		// 将省略号解析出来, 生成一个二维slice
 		// setArgs[]表示有多少个纠删集，setArgs[][]表示纠删集中磁盘的URL，实例内容如下
@@ -531,7 +548,7 @@ func createServerEndpoints(serverAddr string, args ...string) (
 		// 4. 通过最大公约数，从给定的纠删组磁盘数的数据集中找出可用的数据项
 		// 5. 遍历步骤3返回的切片，并且和步骤1中pattern的seq长度做计算，找出对称的数据(对称性计算参看函数possibleSetCountsWithSymmetry)
 		// 6. 从步骤5中选出磁盘数最大的选项
-		setArgs, err := GetAllSets(arg)
+		setArgs, err := GetAllSets(i, arg)
 		if err != nil {
 			return nil, -1, err
 		}
