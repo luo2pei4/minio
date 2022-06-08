@@ -46,6 +46,11 @@ const (
 	// Standard storage class environment variable
 	StandardEnv = "MINIO_STORAGE_CLASS_STANDARD"
 
+	// small file start
+	SSDStandardEnv = "MINIO_SSD_STORAGE_CLASS_STANDARD"
+	SSDRRSEnv      = "MINIO_SSD_STORAGE_CLASS_RRS"
+	// small file end
+
 	// Supported storage class scheme is EC
 	schemePrefix = "EC"
 
@@ -291,3 +296,45 @@ func LookupConfig(kvs config.KVS, setDriveCount int) (cfg Config, err error) {
 
 	return cfg, nil
 }
+
+// LookupSSDConfig 获取SSD相关EC配比函数
+// small file start
+func LookupSSDConfig(kvs config.KVS, setDriveCount int) (cfg Config, err error) {
+	cfg = Config{}
+
+	kvs.Delete("dma")
+
+	if err = config.CheckValidKeys(config.StorageClassSubSys, kvs, DefaultKVS); err != nil {
+		return Config{}, err
+	}
+
+	ssc := env.Get(SSDStandardEnv, kvs.Get(ClassStandard))
+	rrsc := env.Get(SSDRRSEnv, kvs.Get(ClassRRS))
+	// Check for environment variables and parse into storageClass struct
+	if ssc != "" {
+		cfg.Standard, err = parseStorageClass(ssc)
+		if err != nil {
+			return Config{}, err
+		}
+	}
+
+	if rrsc != "" {
+		cfg.RRS, err = parseStorageClass(rrsc)
+		if err != nil {
+			return Config{}, err
+		}
+	}
+	if cfg.RRS.Parity == 0 {
+		cfg.RRS.Parity = defaultRRSParity
+	}
+
+	// Validation is done after parsing both the storage classes. This is needed because we need one
+	// storage class value to deduce the correct value of the other storage class.
+	if err = validateParity(cfg.Standard.Parity, cfg.RRS.Parity, setDriveCount); err != nil {
+		return Config{}, err
+	}
+
+	return cfg, nil
+}
+
+// small file end
