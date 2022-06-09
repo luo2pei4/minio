@@ -93,10 +93,8 @@ func newErasureServerPools(ctx context.Context, endpointServerPools EndpointServ
 			// -- Default for Standard Storage class is, parity = 3 - disks 6, 7
 			// -- Default for Standard Storage class is, parity = 4 - disks 8 to 16
 			commonParityDrives = ecDrivesNoConfig(ep.DrivesPerSet)
-			z.serverPools[i].driveType = driveTypeHDD
 		case driveTypeSSD:
 			commonParityDrives = ecSSDDrivesNoConfig(ep.DrivesPerSet)
-			z.serverPools[i].driveType = driveTypeSSD
 		}
 		// small file end
 
@@ -134,6 +132,10 @@ func newErasureServerPools(ctx context.Context, endpointServerPools EndpointServ
 		if err != nil {
 			return nil, err
 		}
+
+		// small file start
+		z.serverPools[i].driveType = i
+		// small file end
 	}
 
 	z.decommissionCancelers = make([]context.CancelFunc, len(z.serverPools))
