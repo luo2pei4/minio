@@ -404,8 +404,6 @@ func GetAllSets(driveType int, args ...string) ([][]string, error) {
 	}
 	// small file end
 
-	fmt.Printf("args: %v, len: %d\n", args, len(args))
-
 	var setArgs [][]string
 	// 传入参数中不带省略号的场合
 	if !ellipses.HasEllipses(args...) {
@@ -552,8 +550,6 @@ func createServerEndpoints(serverAddr string, args ...string) (
 		if err != nil {
 			return nil, -1, err
 		}
-
-		fmt.Printf("setArgs: %v\n", setArgs)
 
 		// 根据解析出来的endpoint名称，创建endpoint的实例和安装类型。
 		endpointList, gotSetupType, err := CreateEndpoints(serverAddr, foundPrevLocal, setArgs...)
