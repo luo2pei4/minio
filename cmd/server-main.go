@@ -176,12 +176,6 @@ func serverHandleCmdArgs(ctx *cli.Context) {
 	globalEndpoints, setupType, err = createServerEndpoints(globalMinioAddr, serverCmdArgs(ctx)...)
 	logger.FatalIf(err, "Invalid command line arguments")
 
-	// small file start
-	if len(globalEndpoints) > 2 {
-		logger.FatalIf(err, "Invalid server pool config")
-	}
-	// small file end
-
 	// 获取本机的peer，FS和纠删模式下，一般返回127.0.0.1:9000;
 	// 集群模式先，传入参数中的第一个节点的地址。
 	globalLocalNodeName = GetLocalPeer(globalEndpoints, globalMinioHost, globalMinioPort)

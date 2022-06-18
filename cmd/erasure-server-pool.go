@@ -39,14 +39,6 @@ import (
 	"github.com/minio/pkg/wildcard"
 )
 
-// small file start
-const (
-	driveTypeHDD = iota
-	driveTypeSSD
-)
-
-// small file end
-
 type erasureServerPools struct {
 	GatewayUnsupported
 
@@ -84,19 +76,12 @@ func newErasureServerPools(ctx context.Context, endpointServerPools EndpointServ
 	local := endpointServerPools.FirstLocal()
 	for i, ep := range endpointServerPools {
 
-		// small file start
-		switch i {
-		case driveTypeHDD:
-			// If storage class is not set during startup, default values are used
-			// -- Default for Reduced Redundancy Storage class is, parity = 2
-			// -- Default for Standard Storage class is, parity = 2 - disks 4, 5
-			// -- Default for Standard Storage class is, parity = 3 - disks 6, 7
-			// -- Default for Standard Storage class is, parity = 4 - disks 8 to 16
-			commonParityDrives = ecDrivesNoConfig(ep.DrivesPerSet)
-		case driveTypeSSD:
-			commonParityDrives = ecSSDDrivesNoConfig(ep.DrivesPerSet)
-		}
-		// small file end
+		// If storage class is not set during startup, default values are used
+		// -- Default for Reduced Redundancy Storage class is, parity = 2
+		// -- Default for Standard Storage class is, parity = 2 - disks 4, 5
+		// -- Default for Standard Storage class is, parity = 3 - disks 6, 7
+		// -- Default for Standard Storage class is, parity = 4 - disks 8 to 16
+		commonParityDrives = ecDrivesNoConfig(ep.DrivesPerSet)
 
 		if err = storageclass.ValidateParity(commonParityDrives, ep.DrivesPerSet); err != nil {
 			return nil, fmt.Errorf("All current serverPools should have same parity ratio - expected %d, got %d", commonParityDrives, ecDrivesNoConfig(ep.DrivesPerSet))
@@ -132,10 +117,6 @@ func newErasureServerPools(ctx context.Context, endpointServerPools EndpointServ
 		if err != nil {
 			return nil, err
 		}
-
-		// small file start
-		z.serverPools[i].driveType = i
-		// small file end
 	}
 
 	z.decommissionCancelers = make([]context.CancelFunc, len(z.serverPools))

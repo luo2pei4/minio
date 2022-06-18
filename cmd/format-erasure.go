@@ -839,21 +839,6 @@ func ecDrivesNoConfig(setDriveCount int) int {
 	return ecDrives
 }
 
-// small file start
-func ecSSDDrivesNoConfig(setDriveCount int) int {
-	// 返回storage class的配置信息
-	sc, _ := storageclass.LookupSSDConfig(config.KVS{}, setDriveCount)
-	// 从storage class的配置信息中获取standard storage class的校验盘的数量
-	ecDrives := sc.GetParityForSC(storageclass.STANDARD)
-	// 校验盘数量等于0的情况，一般是没有在环境变量中设置EC配额的默认情况
-	if ecDrives <= 0 {
-		ecDrives = getDefaultParityBlocks(setDriveCount)
-	}
-	return ecDrives
-}
-
-// small file end
-
 // Make Erasure backend meta volumes.
 func makeFormatErasureMetaVolumes(disk StorageAPI) error {
 	if disk == nil {
