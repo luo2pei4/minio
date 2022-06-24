@@ -503,9 +503,14 @@ func (z *erasureServerPools) LocalStorageInfo(ctx context.Context) (StorageInfo,
 func (z *erasureServerPools) StorageInfo(ctx context.Context) (StorageInfo, []error) {
 	var storageInfo StorageInfo
 
+	// 创建一个StorageInfo对象的切片，长度为pool的数量
 	storageInfos := make([]StorageInfo, len(z.serverPools))
+
+	// 创建一个error对象的二维切片，第一维度的长度为pool的数量
 	storageInfosErrs := make([][]error, len(z.serverPools))
 	g := errgroup.WithNErrs(len(z.serverPools))
+
+	// 遍历server pool，启用协程调用erasureSets对象的StorageInfo方法，并等待所有协程返回
 	for index := range z.serverPools {
 		index := index
 		g.Go(func() error {
@@ -821,6 +826,7 @@ func (z *erasureServerPools) getLatestObjectInfoWithIdx(ctx context.Context, buc
 	return ObjectInfo{}, -1, ObjectNotFound{Bucket: bucket, Object: object}
 }
 
+// GetObjectInfo 获取对象信息，主要传入桶，对象名称和对象查询的相关选项参数
 func (z *erasureServerPools) GetObjectInfo(ctx context.Context, bucket, object string, opts ObjectOptions) (objInfo ObjectInfo, err error) {
 	if err = checkGetObjArgs(ctx, bucket, object); err != nil {
 		return objInfo, err
@@ -1082,12 +1088,21 @@ func (z *erasureServerPools) ListObjectsV2(ctx context.Context, bucket, prefix, 
 	return listObjectsV2Info, err
 }
 
+// 获取对象版本
 func (z *erasureServerPools) ListObjectVersions(ctx context.Context, bucket, prefix, marker, versionMarker, delimiter string, maxKeys int) (ListObjectVersionsInfo, error) {
 	loi := ListObjectVersionsInfo{}
 	if marker == "" && versionMarker != "" {
 		return loi, NotImplemented{}
 	}
 
+	// 创建listPath的可选项实例，包括以下内容:
+	// 1、Bucket，桶名称
+	// 2、Prefix，前缀
+	// 3、Separator，分割符
+	// 4、Limit，最大返回记录数
+	// 5、Marker，标记，表示最近查到哪个对象的名称
+	// 6、InclDeleted，是否包括被删除，设置为true表示将保留最新版本为删除标记的所有条目
+	// 7、AskDisks，需要访问的磁盘数量。在没有设置相关环境变量的情况下，globalAPIConfig.getListQuorum()将返回默认值-1
 	opts := listPathOptions{
 		Bucket:      bucket,
 		Prefix:      prefix,

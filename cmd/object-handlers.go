@@ -576,6 +576,7 @@ func (api objectAPIHandlers) GetObjectHandler(w http.ResponseWriter, r *http.Req
 	}
 }
 
+// 获取对象元数据，一般在获取对象前执行。
 func (api objectAPIHandlers) headObjectHandler(ctx context.Context, objectAPI ObjectLayer, bucket, object string, w http.ResponseWriter, r *http.Request) {
 	if crypto.S3.IsRequested(r.Header) || crypto.S3KMS.IsRequested(r.Header) { // If SSE-S3 or SSE-KMS present -> AWS fails with undefined error
 		writeErrorResponseHeadersOnly(w, errorCodes.ToAPIErr(ErrBadRequest))

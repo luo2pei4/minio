@@ -425,7 +425,7 @@ func (er erasureObjects) getObjectFileInfo(ctx context.Context, bucket, object s
 	disks := er.getDisks()
 
 	// Read metadata associated with the object from all disks.
-	// 从所有磁盘的下列路径中的xl.meta文件中读取中读取读取所有与对象相关的元数据
+	// 从所有磁盘的下列路径中的xl.meta文件中读取所有与对象相关的元数据
 	// /{mountpoint}/.minio.sys/buckets/.usage.json
 	metaArr, errs := readAllFileInfo(ctx, disks, bucket, object, opts.VersionID, readData)
 

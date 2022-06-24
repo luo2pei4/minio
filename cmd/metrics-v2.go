@@ -306,6 +306,7 @@ func getClusterCapacityFreeBytesMD() MetricDescription {
 	}
 }
 
+// 指标名称: minio_cluster_capacity_usable_total_bytes
 func getClusterCapacityUsageBytesMD() MetricDescription {
 	return MetricDescription{
 		Namespace: clusterMetricNamespace,
