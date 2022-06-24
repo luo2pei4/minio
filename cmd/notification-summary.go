@@ -22,6 +22,7 @@ import (
 )
 
 // GetTotalCapacity gets the total capacity in the cluster.
+// 获取集群中所有数据盘的总容量
 func GetTotalCapacity(diskInfo []madmin.Disk) (capacity uint64) {
 	for _, disk := range diskInfo {
 		capacity += disk.TotalSpace
@@ -31,6 +32,7 @@ func GetTotalCapacity(diskInfo []madmin.Disk) (capacity uint64) {
 
 // GetTotalUsableCapacity gets the total usable capacity in the cluster.
 // This value is not an accurate representation of total usable in a multi-tenant deployment.
+// 获取集群总的可用容量
 func GetTotalUsableCapacity(diskInfo []madmin.Disk, s StorageInfo) (capacity float64) {
 	raw := GetTotalCapacity(diskInfo)
 	var approxDataBlocks float64
