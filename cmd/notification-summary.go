@@ -25,6 +25,10 @@ import (
 // 获取集群中所有数据盘的总容量
 func GetTotalCapacity(diskInfo []madmin.Disk) (capacity uint64) {
 	for _, disk := range diskInfo {
+		// 过滤掉磁盘异常的情况，包括拔盘。
+		if disk.State != "ok" {
+			continue
+		}
 		capacity += disk.TotalSpace
 	}
 	return
@@ -48,6 +52,9 @@ func GetTotalUsableCapacity(diskInfo []madmin.Disk, s StorageInfo) (capacity flo
 // GetTotalCapacityFree gets the total capacity free in the cluster.
 func GetTotalCapacityFree(diskInfo []madmin.Disk) (capacity uint64) {
 	for _, d := range diskInfo {
+		if d.State != "ok" {
+			continue
+		}
 		capacity += d.AvailableSpace
 	}
 	return

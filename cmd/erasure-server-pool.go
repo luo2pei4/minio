@@ -219,6 +219,9 @@ func (z *erasureServerPools) GetRawData(ctx context.Context, volume, file string
 	return nil
 }
 
+// SetDriveCounts 获取每个server pool的erasure set的磁盘数量。
+// 但个server pool中erasure set的磁盘数量是相同的，
+// 所以一个server pool中erasure set的磁盘数量只能有一个值。
 func (z *erasureServerPools) SetDriveCounts() []int {
 	setDriveCounts := make([]int, len(z.serverPools))
 	for i := range z.serverPools {
