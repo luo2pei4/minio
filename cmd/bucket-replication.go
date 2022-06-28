@@ -849,6 +849,8 @@ func replicateObject(ctx context.Context, ri ReplicateObjectInfo, objectAPI Obje
 	bucket := objInfo.Bucket
 	object := objInfo.Name
 
+	// 获取复制策略配置
+	// 实际是从globalBucketMetadataSys对象中获取
 	cfg, err := getReplicationConfig(ctx, bucket)
 	if err != nil {
 		logger.LogIf(ctx, err)
@@ -860,6 +862,8 @@ func replicateObject(ctx context.Context, ri ReplicateObjectInfo, objectAPI Obje
 		})
 		return
 	}
+
+	// 返回排序去重后的复制策略切片
 	tgtArns := cfg.FilterTargetArns(replication.ObjectOpts{
 		Name:     object,
 		SSEC:     crypto.SSEC.IsEncrypted(objInfo.UserDefined),
@@ -868,6 +872,7 @@ func replicateObject(ctx context.Context, ri ReplicateObjectInfo, objectAPI Obje
 	// Lock the object name before starting replication.
 	// Use separate lock that doesn't collide with regular objects.
 	lk := objectAPI.NewNSLock(bucket, "/[replicate]/"+object)
+	// 操作超时时间10分钟，最小5分钟
 	lkctx, err := lk.GetLock(ctx, globalOperationTimeout)
 	if err != nil {
 		sendEvent(eventArgs{
@@ -885,6 +890,8 @@ func replicateObject(ctx context.Context, ri ReplicateObjectInfo, objectAPI Obje
 	var wg sync.WaitGroup
 	var rinfos replicatedInfos
 	rinfos.Targets = make([]replicatedTargetInfo, len(tgtArns))
+
+	// 遍历复制策略切片
 	for i, tgtArn := range tgtArns {
 		tgt := globalBucketTargetSys.GetRemoteTargetClient(ctx, tgtArn)
 		if tgt == nil {
@@ -983,6 +990,7 @@ func replicateObjectToTarget(ctx context.Context, ri ReplicateObjectInfo, object
 	// set defaults for replication action based on operation being performed - actual
 	// replication action can only be determined after stat on remote. This default is
 	// needed for updating replication metrics correctly when target is offline.
+	// 调用PutObjectHandler方法时，传入的replicationType是1
 	var rAction replicationAction
 	switch ri.OpType {
 	case replication.MetadataReplicationType:
@@ -1656,6 +1664,7 @@ func proxyHeadToReplicationTarget(ctx context.Context, bucket, object string, op
 }
 
 func scheduleReplication(ctx context.Context, objInfo ObjectInfo, o ObjectLayer, dsc ReplicateDecision, opType replication.Type) {
+	// 判断是否是同步复制
 	if dsc.Synchronous() {
 		replicateObject(ctx, ReplicateObjectInfo{ObjectInfo: objInfo, OpType: opType, Dsc: dsc}, o, ReplicateIncoming)
 	} else {

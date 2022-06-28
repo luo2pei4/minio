@@ -78,6 +78,8 @@ func (ri replicatedInfos) ReplicationResynced() bool {
 	return false
 }
 
+// 获取复制的内部状态，返回字符串，格式如下：
+// {arn1}={ReplicationStatus};{arn2}={ReplicationStatus};
 func (ri replicatedInfos) ReplicationStatusInternal() string {
 	b := new(bytes.Buffer)
 	for _, t := range ri.Targets {
