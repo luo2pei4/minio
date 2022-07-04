@@ -57,11 +57,13 @@ func renameAllBucketMetacache(epPath string) error {
 // Other important fields are Limit, Marker.
 // List ID always derived from the Marker.
 func (z *erasureServerPools) listPath(ctx context.Context, o *listPathOptions) (entries metaCacheEntriesSorted, err error) {
+	// 检查桶是否存在；prefix是否有效；marker存在的情况下，marker是否包含了prefix
 	if err := checkListObjsArgs(ctx, o.Bucket, o.Prefix, o.Marker, z); err != nil {
 		return entries, err
 	}
 
 	// Marker is set validate pre-condition.
+	// marker和prefix同时存在的场合，检查marker中是否有prefix
 	if o.Marker != "" && o.Prefix != "" {
 		// Marker not common with prefix is not implemented. Send an empty response
 		if !HasPrefix(o.Marker, o.Prefix) {
@@ -78,6 +80,7 @@ func (z *erasureServerPools) listPath(ctx context.Context, o *listPathOptions) (
 	// along // with the prefix. On a flat namespace with 'prefix'
 	// as '/' we don't have any entries, since all the keys are
 	// of form 'keyName/...'
+	// 检查prefix是否是“/”开头
 	if strings.HasPrefix(o.Prefix, SlashSeparator) {
 		return entries, io.EOF
 	}

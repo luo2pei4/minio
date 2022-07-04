@@ -67,10 +67,12 @@ func checkListObjsArgs(ctx context.Context, bucket, prefix, marker string, obj g
 	// important here bucket does not exist error should
 	// happen before we return an error for invalid object name.
 	// FIXME: should be moved to handler layer.
+	// 检查桶是否存在
 	if err := checkBucketExist(ctx, bucket, obj); err != nil {
 		return err
 	}
 	// Validates object prefix validity after bucket exists.
+	// 检查prefix是否有效
 	if !IsValidObjectPrefix(prefix) {
 		logger.LogIf(ctx, ObjectNameInvalid{
 			Bucket: bucket,
@@ -82,6 +84,7 @@ func checkListObjsArgs(ctx context.Context, bucket, prefix, marker string, obj g
 		}
 	}
 	// Verify if marker has prefix.
+	// 当marker存在的场合，检查marker中是否包含了prefix
 	if marker != "" && !HasPrefix(marker, prefix) {
 		logger.LogIf(ctx, InvalidMarkerPrefixCombination{
 			Marker: marker,
