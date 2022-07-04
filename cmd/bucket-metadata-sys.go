@@ -98,6 +98,7 @@ func (sys *BucketMetadataSys) Update(ctx context.Context, bucket string, configF
 		return errInvalidArgument
 	}
 
+	// 加载指定桶的元数据
 	meta, err := loadBucketMetadata(ctx, objAPI, bucket)
 	if err != nil {
 		if !globalIsErasure && !globalIsDistErasure && errors.Is(err, errVolumeNotFound) {
@@ -108,6 +109,7 @@ func (sys *BucketMetadataSys) Update(ctx context.Context, bucket string, configF
 		}
 	}
 
+	// 判断配置文件类型，并将对应的配置数据设置到桶的元数据中。
 	switch configFile {
 	case bucketPolicyConfig:
 		meta.PolicyConfigJSON = configData
@@ -148,11 +150,14 @@ func (sys *BucketMetadataSys) Update(ctx context.Context, bucket string, configF
 		return fmt.Errorf("Unknown bucket %s metadata update requested %s", bucket, configFile)
 	}
 
+	// 保存桶的元数据。包括保存到其他节点。
 	if err := meta.Save(ctx, objAPI); err != nil {
 		return err
 	}
 
+	// 将桶新的元数据保存到内存中
 	sys.Set(bucket, meta)
+	// 通知其他节点重新加载元数据
 	globalNotificationSys.LoadBucketMetadata(bgContext(ctx), bucket) // Do not use caller context here
 
 	return nil

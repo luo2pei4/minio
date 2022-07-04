@@ -120,7 +120,9 @@ func (b *BucketMetadata) Load(ctx context.Context, api ObjectLayer, name string)
 		logger.LogIf(ctx, errors.New("bucket name cannot be empty"))
 		return errors.New("bucket name cannot be empty")
 	}
+	// 拼装路径 buckets/{bucket_name}/.metadata.bin
 	configFile := path.Join(bucketMetaPrefix, name, bucketMetadataFile)
+	// 读取配置信息
 	data, err := readConfig(ctx, api, configFile)
 	if err != nil {
 		return err
@@ -140,6 +142,7 @@ func (b *BucketMetadata) Load(ctx context.Context, api ObjectLayer, name string)
 		return fmt.Errorf("loadBucketMetadata: unknown version: %d", binary.LittleEndian.Uint16(data[2:4]))
 	}
 	// OK, parse data.
+	// 解析读取的metadata.bin的字节切片到BucketMetadata结构体的实例中
 	_, err = b.UnmarshalMsg(data[4:])
 	b.Name = name // in-case parsing failed for some reason, make sure bucket name is not empty.
 	return err
@@ -148,16 +151,19 @@ func (b *BucketMetadata) Load(ctx context.Context, api ObjectLayer, name string)
 // loadBucketMetadata loads and migrates to bucket metadata.
 func loadBucketMetadata(ctx context.Context, objectAPI ObjectLayer, bucket string) (BucketMetadata, error) {
 	b := newBucketMetadata(bucket)
+	// 加载桶的元数据二进制文件(metadata.bin)
 	err := b.Load(ctx, objectAPI, b.Name)
 	if err != nil && !errors.Is(err, errConfigNotFound) {
 		return b, err
 	}
 
 	// Old bucket without bucket metadata. Hence we migrate existing settings.
+	// 转换老版本元数据，将老版本的xml和json文件读取出来保存为二进制文件。保存成功后删除原来的配置文件。
 	if err := b.convertLegacyConfigs(ctx, objectAPI); err != nil {
 		return b, err
 	}
 	// migrate unencrypted remote targets
+	// 将老版本的桶元数据配置信息迁移到新版本的二进制文件
 	return b, b.migrateTargetConfig(ctx, objectAPI)
 }
 

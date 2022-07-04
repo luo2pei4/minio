@@ -188,21 +188,25 @@ func ParseLifecycleConfig(reader io.Reader) (*Lifecycle, error) {
 // Validate - validates the lifecycle configuration
 func (lc Lifecycle) Validate() error {
 	// Lifecycle config can't have more than 1000 rules
+	// 生命周期规则数量不能大于1000
 	if len(lc.Rules) > 1000 {
 		return errLifecycleTooManyRules
 	}
 	// Lifecycle config should have at least one rule
+	// 生命周期规则数量为0时，返回错误信息。
 	if len(lc.Rules) == 0 {
 		return errLifecycleNoRule
 	}
 
 	// Validate all the rules in the lifecycle config
+	// 遍历所有规则，并对规则作校验。
 	for _, r := range lc.Rules {
 		if err := r.Validate(); err != nil {
 			return err
 		}
 	}
 	// Make sure Rule ID is unique
+	// 判断规则ID是否有重复
 	for i := range lc.Rules {
 		if i == len(lc.Rules)-1 {
 			break

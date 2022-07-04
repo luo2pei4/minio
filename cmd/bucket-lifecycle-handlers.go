@@ -47,26 +47,32 @@ func (api objectAPIHandlers) PutBucketLifecycleHandler(w http.ResponseWriter, r 
 		return
 	}
 
+	// 返回httprequest的参数
 	vars := mux.Vars(r)
+	// 获取桶名称
 	bucket := vars["bucket"]
 
 	// PutBucketLifecycle always needs a Content-Md5
+	// 检查是否有MD5
 	if _, ok := r.Header[xhttp.ContentMD5]; !ok {
 		writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrMissingContentMD5), r.URL)
 		return
 	}
 
+	// 检查请求的权限类型
 	if s3Error := checkRequestAuthType(ctx, r, policy.PutBucketLifecycleAction, bucket, ""); s3Error != ErrNone {
 		writeErrorResponse(ctx, w, errorCodes.ToAPIErr(s3Error), r.URL)
 		return
 	}
 
 	// Check if bucket exists.
+	// 通过桶名称，检查桶是否存在
 	if _, err := objAPI.GetBucketInfo(ctx, bucket); err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
 		return
 	}
 
+	// 解析request的数据，生成桶生命周期结构体实例。
 	bucketLifecycle, err := lifecycle.ParseLifecycleConfig(io.LimitReader(r.Body, r.ContentLength))
 	if err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
@@ -74,6 +80,7 @@ func (api objectAPIHandlers) PutBucketLifecycleHandler(w http.ResponseWriter, r 
 	}
 
 	// Validate the received bucket policy document
+	// 对生命周期规则进行校验
 	if err = bucketLifecycle.Validate(); err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
 		return
@@ -85,12 +92,14 @@ func (api objectAPIHandlers) PutBucketLifecycleHandler(w http.ResponseWriter, r 
 		return
 	}
 
+	// 将桶生命周期结构体实例序列化为字节切片
 	configData, err := xml.Marshal(bucketLifecycle)
 	if err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
 		return
 	}
 
+	// 更新全局的桶元数据
 	if err = globalBucketMetadataSys.Update(ctx, bucket, bucketLifecycleConfig, configData); err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
 		return
