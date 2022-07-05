@@ -228,10 +228,13 @@ func (lc Lifecycle) FilterActionableRules(obj ObjectOpts) []Rule {
 		return nil
 	}
 	var rules []Rule
+	// 遍历生命周期规则
 	for _, rule := range lc.Rules {
+		// 生命周期状态为“Disabled”的场合，不做处理
 		if rule.Status == Disabled {
 			continue
 		}
+		// 如果对象名称不包含生命周期规则前缀，不做处理
 		if !strings.HasPrefix(obj.Name, rule.GetPrefix()) {
 			continue
 		}
@@ -247,6 +250,7 @@ func (lc Lifecycle) FilterActionableRules(obj ObjectOpts) []Rule {
 		// The NoncurrentVersionExpiration action requests MinIO to expire
 		// noncurrent versions of objects x days after the objects become
 		// noncurrent.
+		// 非当前版本的过期天数不为空的场合，将该规则加入规则切片
 		if !rule.NoncurrentVersionExpiration.IsDaysNull() {
 			rules = append(rules, rule)
 			continue
@@ -407,6 +411,7 @@ func ExpectedExpiryTime(modTime time.Time, days int) time.Time {
 // PredictExpiryTime returns the expiry date/time of a given object
 // after evaluating the current lifecycle document.
 func (lc Lifecycle) PredictExpiryTime(obj ObjectOpts) (string, time.Time) {
+	// 如果对象删除标志为true，则不添加过期时间
 	if obj.DeleteMarker {
 		// We don't need to send any x-amz-expiration for delete marker.
 		return "", time.Time{}
