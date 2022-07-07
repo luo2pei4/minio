@@ -1251,7 +1251,7 @@ func (s *xlStorage) ReadVersion(ctx context.Context, volume, path, versionID str
 	var buf []byte
 	var dmTime time.Time
 	if readData {
-		// 读取/{mountpoint}/.minio.sys/buckets/.usage.json路径下的xl.meta文件
+		// 读取指定路径下的xl.meta文件
 		buf, dmTime, err = s.readAllData(ctx, volumeDir, pathJoin(filePath, xlStorageFormatFile))
 	} else {
 		buf, dmTime, err = s.readMetadataWithDMTime(ctx, pathJoin(filePath, xlStorageFormatFile))

@@ -118,30 +118,44 @@ func baseDirFromPrefix(prefix string) string {
 // update cache with new status.
 // The updates are conditional so multiple callers can update with different states.
 func (m *metacache) update(update metacache) {
+
+	// 最后更新时间
 	m.lastUpdate = UTCNow()
 
 	if m.lastHandout.After(m.lastHandout) {
 		m.lastHandout = UTCNow()
 	}
+	// 如果原有metacache中的状态为开始扫描，并且更新metacache的状态为已经扫描成功
+	// 更新metacache的结束时间
 	if m.status == scanStateStarted && update.status == scanStateSuccess {
 		m.ended = UTCNow()
 	}
 
+	// 如果原有metacache中的状态为开始扫描，并且更新metacache的状态不是开始扫描
+	// 更新原有metacache的状态为更新metacache的状态
 	if m.status == scanStateStarted && update.status != scanStateStarted {
 		m.status = update.status
 	}
 
+	// 如果原有metacache中的状态为开始扫描，并且lastHandout到当前时间大于3分钟，则设置错误扫描状态和信息
 	if m.status == scanStateStarted && time.Since(m.lastHandout) > metacacheMaxClientWait {
 		// Drop if client hasn't been seen for 3 minutes.
 		m.status = scanStateError
 		m.error = "client not seen"
 	}
 
+	// 如果原有metacache中的错误信息为空，并且更新metacache的错误信息不为空
+	// 设置原有metacache中的错误信息为更新metacache的错误信息
+	// 设置原有metacache中的状态为扫描错误状态
+	// 设置原有metacache中的结束时间为当前时间
 	if m.error == "" && update.error != "" {
 		m.error = update.error
 		m.status = scanStateError
 		m.ended = UTCNow()
 	}
+
+	// 如果原有metacache中的文件未发现状态或更新metacache中的文件为发现状态任意一个为true
+	// 设置原有metacache中的文件未发现状态为true，否则为false
 	m.fileNotFound = m.fileNotFound || update.fileNotFound
 }
 

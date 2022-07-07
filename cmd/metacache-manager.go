@@ -31,6 +31,7 @@ import (
 // It should never be used directly since buckets are
 // distributed deterministically.
 // Therefore no cluster locks are required.
+// 本地的元数据缓存管理器
 var localMetacacheMgr = &metacacheManager{
 	buckets: make(map[string]*bucketMetacache),
 	trash:   make(map[string]metacache),
@@ -92,13 +93,16 @@ func (m *metacacheManager) initManager() {
 // updateCacheEntry will update non-transient state.
 func (m *metacacheManager) updateCacheEntry(update metacache) (metacache, error) {
 	m.mu.RLock()
+	// 查看垃圾切片中是否有对应的ID，如果有则返回对应ID的metacache
 	if meta, ok := m.trash[update.id]; ok {
 		m.mu.RUnlock()
 		return meta, nil
 	}
 
+	// 从桶metacache切片中查找对应桶名的metacache切片
 	b, ok := m.buckets[update.bucket]
 	m.mu.RUnlock()
+	// 获取成功的场合，更新该桶的metacache切片
 	if ok {
 		return b.updateCacheEntry(update)
 	}

@@ -113,14 +113,18 @@ func (z *erasureServerPools) listPath(ctx context.Context, o *listPathOptions) (
 	// If we don't have a list id we must ask the server if it has a cache or create a new.
 	if o.ID != "" && !o.Transient {
 		// Create or ping with handout...
+		// 从全局的消息通知实例中随机获取peerClient
 		rpc := globalNotificationSys.restClientFromHash(o.Bucket)
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		var c *metacache
+
+		// 如果peerClient不存在的场合，从本地元数据缓存管理其中获取指定桶的元数据缓存
 		if rpc == nil {
 			resp := localMetacacheMgr.getBucket(ctx, o.Bucket).findCache(*o)
 			c = &resp
 		} else {
+			// peerClient存在的场合，获取其他节点的元数据缓存
 			c, err = rpc.GetMetacacheListing(ctx, *o)
 		}
 		if err != nil {

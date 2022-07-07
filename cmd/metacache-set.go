@@ -277,6 +277,11 @@ func metacachePrefixForID(bucket, id string) string {
 }
 
 // objectPath returns the object path of the cache.
+// 获取cache对象路径
+// buckets/{listPathOptions.Bucket}/.metacache/{listPathOptions.ID}/block-{param_block}.s2
+// {listPathOptions.Bucket}是传入的桶名称
+// {listPathOptions.ID}是传入的ID值
+// {param_block}是方法的入参
 func (o *listPathOptions) objectPath(block int) string {
 	return pathJoin(metacachePrefixForID(o.Bucket, o.ID), "block-"+strconv.Itoa(block)+".s2")
 }
@@ -359,6 +364,9 @@ func (er *erasureObjects) streamMetadataParts(ctx context.Context, o listPathOpt
 		}
 
 		// If many failures, check the cache state.
+		// 如果重试超过10次，检查其他节点的metacache状态
+		// 检查返回错误信息的场合，方法直接返回，返回值是metaCacheEntriesSorted零值和错误信息
+		// 检查成功的场合，将重试次数置为1
 		if retries > 10 {
 			err := o.checkMetacacheState(ctx, rpc)
 			if err != nil {
@@ -370,6 +378,7 @@ func (er *erasureObjects) streamMetadataParts(ctx context.Context, o listPathOpt
 		const retryDelay = 250 * time.Millisecond
 		// All operations are performed without locks, so we must be careful and allow for failures.
 		// Read metadata associated with the object from a disk.
+		// 重试次数大于0的场合
 		if retries > 0 {
 			for _, disk := range er.getDisks() {
 				if disk == nil {
@@ -391,6 +400,7 @@ func (er *erasureObjects) streamMetadataParts(ctx context.Context, o listPathOpt
 
 		// Load first part metadata...
 		// Read metadata associated with the object from all disks.
+		// 读取所有磁盘的metacache数据
 		fi, metaArr, onlineDisks, err := er.getObjectFileInfo(ctx, minioMetaBucket, o.objectPath(0), ObjectOptions{}, true)
 		if err != nil {
 			switch toObjectErr(err, minioMetaBucket, o.objectPath(0)).(type) {
