@@ -111,6 +111,10 @@ var userMetadataKeyPrefixes = []string{
 }
 
 // extractMetadata extracts metadata from HTTP header and HTTP queryString.
+// 提取请求的query和header中的kv，并写入一个叫metadata的map中。
+// 如果metadata中不包含Content-Type，设置默认的Content-Type为binary/octet-stream
+// 如果metadata中包含X-Amz-Meta-X-Amz-Unencrypted-Content-Length和X-Amz-Meta-X-Amz-Unencrypted-Content-Md5两key，则删除这两个key
+// 如果metadata中的Content-Encoding参数的值包含aws-chunked，去掉该字符串。如果去掉后的值为空串，则从metadata中删除Content-Encoding。
 func extractMetadata(ctx context.Context, r *http.Request) (metadata map[string]string, err error) {
 	query := r.Form
 	header := r.Header

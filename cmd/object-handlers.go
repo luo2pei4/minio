@@ -1526,12 +1526,15 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 	ctx := newContext(r, w, "PutObject")
 	defer logger.AuditLog(ctx, w, r, mustGetClaimsFromToken(r))
 
+	// 获取ObjectLayer实例，集群模式下是ErasureServerPool结构体的实例。
 	objectAPI := api.ObjectAPI()
 	if objectAPI == nil {
 		writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrServerNotInitialized), r.URL)
 		return
 	}
 
+	// 判断是否需要server端进行加密。
+	// S3的场景，header中的X-Amz-Server-Side-Encryption属性值为aws:kms，表示需要server端进行加密
 	if _, ok := crypto.IsRequested(r.Header); ok {
 		if globalIsGateway {
 			if crypto.SSEC.IsRequested(r.Header) && !objectAPI.IsEncryptionSupported() {
@@ -1546,8 +1549,11 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		}
 	}
 
+	// 解析http请求的参数
 	vars := mux.Vars(r)
+	// 获取桶名称
 	bucket := vars["bucket"]
+	// 获取对象名称
 	object, err := unescapePath(vars["object"])
 	if err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
@@ -1555,12 +1561,14 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// X-Amz-Copy-Source shouldn't be set for this call.
+	// 上传对象的场景，不能设置X-Amz-Copy-Source参数
 	if _, ok := r.Header[xhttp.AmzCopySource]; ok {
 		writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrInvalidCopySource), r.URL)
 		return
 	}
 
 	// Validate storage class metadata if present
+	// 判断是否设置了storage class参数，如果有设置，设置的值是否有效。
 	if sc := r.Header.Get(xhttp.AmzStorageClass); sc != "" {
 		if !storageclass.IsValid(sc) {
 			writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrInvalidStorageClass), r.URL)
@@ -1568,6 +1576,8 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		}
 	}
 
+	// 判断请求的header中是否设置了Content-Md5参数
+	// 如果有设置，则对Content-Md5的值进行解码并返回byte切片
 	clientETag, err := etag.FromContentMD5(r.Header)
 	if err != nil {
 		writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrInvalidDigest), r.URL)
@@ -1575,7 +1585,9 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// if Content-Length is unknown/missing, deny the request
+	// 获取请求中对象的大小
 	size := r.ContentLength
+	// 获取请求中的鉴权类型
 	rAuthType := getRequestAuthType(r)
 	if rAuthType == authTypeStreamingSigned {
 		if sizeStr, ok := r.Header[xhttp.AmzDecodedContentLength]; ok {
@@ -1590,17 +1602,21 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 			}
 		}
 	}
+
+	// 如果对象大小为-1，返回错误
 	if size == -1 {
 		writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrMissingContentLength), r.URL)
 		return
 	}
 
 	// maximum Upload size for objects in a single operation
+	// 判断对象大小是否超出最大值（5TB）
 	if isMaxObjectSize(size) {
 		writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrEntityTooLarge), r.URL)
 		return
 	}
 
+	// 提取请求中query和header的数据，主要对Content-Type和Content-Encoding两个参数进行处理
 	metadata, err := extractMetadata(ctx, r)
 	if err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
