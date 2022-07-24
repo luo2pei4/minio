@@ -63,11 +63,15 @@ func getReqAccessKeyV4(r *http.Request, region string, stype serviceType) (auth.
 			return auth.Credentials{}, false, s3Err
 		}
 	}
+	// 校验accessKey是否有效
 	return checkKeyValid(r, ch.accessKey)
 }
 
 // parse credentialHeader string into its structured form.
 func parseCredentialHeader(credElement string, region string, stype serviceType) (ch credentialHeader, aec APIErrorCode) {
+
+	// credElement举例如下：
+	// "Credential=ZG3I04S92K3BWVIHH54M/20220724/us-east-1/s3/aws4_request"
 	creds := strings.SplitN(strings.TrimSpace(credElement), "=", 2)
 	if len(creds) != 2 {
 		return ch, ErrMissingFields
@@ -87,6 +91,7 @@ func parseCredentialHeader(credElement string, region string, stype serviceType)
 	cred := credentialHeader{
 		accessKey: accessKey,
 	}
+	// credElements: ["20220724", "us-east-1", "s3", "aws4_request"]
 	credElements = credElements[len(credElements)-4:]
 	var e error
 	cred.scope.date, e = time.Parse(yyyymmdd, credElements[0])

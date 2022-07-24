@@ -1585,11 +1585,13 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// if Content-Length is unknown/missing, deny the request
-	// 获取请求中对象的大小
+	// 获取请求数据流大小，包括对象大小和元数据大小之和
 	size := r.ContentLength
 	// 获取请求中的鉴权类型
 	rAuthType := getRequestAuthType(r)
 	if rAuthType == authTypeStreamingSigned {
+
+		// 通过header的X-Amz-Decoded-Content-Length参数，获取对象实际大小
 		if sizeStr, ok := r.Header[xhttp.AmzDecodedContentLength]; ok {
 			if sizeStr[0] == "" {
 				writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrMissingContentLength), r.URL)
@@ -1623,6 +1625,7 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// 获取请求header中的X-Amz-Tagging参数，如果有设置并且支持标签功能，则将标签加入到metadata实例中。
 	if objTags := r.Header.Get(xhttp.AmzObjectTagging); objTags != "" {
 		if !objectAPI.IsTaggingSupported() {
 			writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrNotImplemented), r.URL)
