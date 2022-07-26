@@ -61,6 +61,8 @@ type Reader struct {
 // into src - if src is a Reader - to avoid computing the same
 // checksums multiple times.
 func NewReader(src io.Reader, size int64, md5Hex, sha256Hex string, actualSize int64) (*Reader, error) {
+	// DecodeString 期望 src 仅包含十六进制字符，并且 src 的长度为偶数。如果输入格式不正确，则DecodeeString返回在错误之前解码的字节。
+	// 校验传入的MD5是否正确
 	MD5, err := hex.DecodeString(md5Hex)
 	if err != nil {
 		return nil, BadDigest{ // TODO(aead): Return an error that indicates that an invalid ETag has been specified
@@ -68,6 +70,7 @@ func NewReader(src io.Reader, size int64, md5Hex, sha256Hex string, actualSize i
 			CalculatedMD5: "",
 		}
 	}
+	// 校验传入的sha256是否正确
 	SHA256, err := hex.DecodeString(sha256Hex)
 	if err != nil {
 		return nil, SHA256Mismatch{ // TODO(aead): Return an error that indicates that an invalid Content-SHA256 has been specified
@@ -78,6 +81,7 @@ func NewReader(src io.Reader, size int64, md5Hex, sha256Hex string, actualSize i
 
 	// Merge the size, MD5 and SHA256 values if src is a Reader.
 	// The size may be set to -1 by callers if unknown.
+	// 上传对象方法调用NewReader函数时不进入该分支，仅是简单的io.Reader实例的指针而已。
 	if r, ok := src.(*Reader); ok {
 		if r.bytesRead > 0 {
 			return nil, errors.New("hash: already read from hash reader")
@@ -113,6 +117,7 @@ func NewReader(src io.Reader, size int64, md5Hex, sha256Hex string, actualSize i
 	if size >= 0 {
 		r := io.LimitReader(src, size)
 		if _, ok := src.(etag.Tagger); !ok {
+			// 新建etag包下的Reader的实例
 			src = etag.NewReader(r, etag.ETag(MD5))
 		} else {
 			src = etag.Wrap(r, src)
@@ -124,6 +129,7 @@ func NewReader(src io.Reader, size int64, md5Hex, sha256Hex string, actualSize i
 	if len(SHA256) != 0 {
 		hash = newSHA256()
 	}
+	// 返回hash包下的Reader的实例。实际就是把request的body包了两层
 	return &Reader{
 		src:           src,
 		size:          size,

@@ -1618,7 +1618,8 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// 提取请求中query和header的数据，主要对Content-Type和Content-Encoding两个参数进行处理
+	// 提取请求中query和header的数据，并保存到名称为metadata的map中
+	// extractMetadata主要对Content-Type和Content-Encoding两个参数进行处理
 	metadata, err := extractMetadata(ctx, r)
 	if err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
@@ -1649,11 +1650,13 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 	)
 
 	// Check if put is allowed
+	// 判断是否允许上传对象
 	if s3Err = isPutActionAllowed(ctx, rAuthType, bucket, object, r, iampolicy.PutObjectAction); s3Err != ErrNone {
 		writeErrorResponse(ctx, w, errorCodes.ToAPIErr(s3Err), r.URL)
 		return
 	}
 
+	// 根据鉴权类型进行处理
 	switch rAuthType {
 	case authTypeStreamingSigned:
 		// Initialize stream signature verifier.
@@ -1683,13 +1686,18 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
 		return
 	}
+	// 判断请求头中的复制状态值是否为REPLICA
 	if r.Header.Get(xhttp.AmzBucketReplicationStatus) == replication.Replica.String() {
+		// 判断是否具有复制对象权限
 		if s3Err = isPutActionAllowed(ctx, getRequestAuthType(r), bucket, object, r, iampolicy.ReplicateObjectAction); s3Err != ErrNone {
 			writeErrorResponse(ctx, w, errorCodes.ToAPIErr(s3Err), r.URL)
 			return
 		}
+		// 在metadata变量中保存对象复制相关的kv
+		// key：x-minio-internal-replica-status/x-minio-internal-replica-timestamp
 		metadata[ReservedMetadataPrefixLower+ReplicaStatus] = replication.Replica.String()
 		metadata[ReservedMetadataPrefixLower+ReplicaTimestamp] = UTCNow().Format(time.RFC3339Nano)
+		// 该方法返回的时候更新复制状态
 		defer globalReplicationStats.UpdateReplicaStat(bucket, size)
 	}
 
@@ -1728,6 +1736,7 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	rawReader := hashReader
+	// 创建PutObjectReader的实例（又包一层）
 	pReader := NewPutObjReader(rawReader)
 
 	// get gateway encryption options
