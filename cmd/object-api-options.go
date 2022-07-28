@@ -53,6 +53,7 @@ func getDefaultOpts(header http.Header, copySource bool, metadata map[string]str
 		return
 	}
 
+	// 判断请求头中是否含有SSE-C相关的参数，有的情况取出相关KeyID，context
 	if crypto.SSEC.IsRequested(header) {
 		clientKey, err = crypto.SSEC.ParseHTTP(header)
 		if err != nil {
@@ -67,10 +68,12 @@ func getDefaultOpts(header http.Header, copySource bool, metadata map[string]str
 	if crypto.S3.IsRequested(header) || (metadata != nil && crypto.S3.IsEncrypted(metadata)) {
 		opts.ServerSideEncryption = encrypt.NewSSE()
 	}
+	// 请求头中包含X-Minio-Source-Proxy-Request参数的场合
 	if v, ok := header[xhttp.MinIOSourceProxyRequest]; ok {
 		opts.ProxyHeaderSet = true
 		opts.ProxyRequest = strings.Join(v, "") == "true"
 	}
+	// 请求头中包含X-Minio-Source-Replication-Request参数的场合，表明该请求是一个复制操作的请求
 	if _, ok := header[xhttp.MinIOSourceReplicationRequest]; ok {
 		opts.ReplicationRequest = true
 	}
@@ -203,10 +206,15 @@ func delOpts(ctx context.Context, r *http.Request, bucket, object string) (opts 
 
 // get ObjectOptions for PUT calls from encryption headers and metadata
 func putOpts(ctx context.Context, r *http.Request, bucket, object string, metadata map[string]string) (opts ObjectOptions, err error) {
+	// 获取桶是否指定多版本
 	versioned := globalBucketVersioningSys.Enabled(bucket)
+	// 获取桶的多版本支持是否被挂起
 	versionSuspended := globalBucketVersioningSys.Suspended(bucket)
+	// 从请求中获取版本ID
 	vid := strings.TrimSpace(r.Form.Get(xhttp.VersionID))
+	// 版本ID不为空切不等于"null"的场合
 	if vid != "" && vid != nullVersionID {
+		// 解析版本ID，判断版本ID是否是有效的ID
 		_, err := uuid.Parse(vid)
 		if err != nil {
 			logger.LogIf(ctx, err)
@@ -216,6 +224,7 @@ func putOpts(ctx context.Context, r *http.Request, bucket, object string, metada
 				VersionID: vid,
 			}
 		}
+		// 如果桶不支持多版本但请求中又设置了版本ID，返回错误。
 		if !versioned {
 			return opts, InvalidArgument{
 				Bucket: bucket,
@@ -224,8 +233,12 @@ func putOpts(ctx context.Context, r *http.Request, bucket, object string, metada
 			}
 		}
 	}
+	// 从请求头中获取参数x-minio-source-mtime的值
 	mtimeStr := strings.TrimSpace(r.Header.Get(xhttp.MinIOSourceMTime))
+	// 获取当前时间
 	mtime := UTCNow()
+	// x-minio-source-mtime的值不为空的情况下，解析该值是否是正确的时间格式。
+	// 保存解析后的时间，如果不是有效的时间格式，返回错误
 	if mtimeStr != "" {
 		mtime, err = time.Parse(time.RFC3339, mtimeStr)
 		if err != nil {
@@ -236,8 +249,12 @@ func putOpts(ctx context.Context, r *http.Request, bucket, object string, metada
 			}
 		}
 	}
+	// 从请求头中获取参数X-Minio-Source-Replication-Retention-Timestamp的值
 	retaintimeStr := strings.TrimSpace(r.Header.Get(xhttp.MinIOSourceObjectRetentionTimestamp))
+	// 先将源对象的mtime复制给retaintimestmp
 	retaintimestmp := mtime
+	// 如果X-Minio-Source-Replication-Retention-Timestamp的值不为空，解析该值是否是正确的时间格式
+	// 保存解析后的时间，如果不是有效时间格式，返货错误
 	if retaintimeStr != "" {
 		retaintimestmp, err = time.Parse(time.RFC3339, retaintimeStr)
 		if err != nil {
@@ -249,6 +266,7 @@ func putOpts(ctx context.Context, r *http.Request, bucket, object string, metada
 		}
 	}
 
+	// 解析请求头中X-Minio-Source-Replication-LegalHold-Timestamp参数的值
 	lholdtimeStr := strings.TrimSpace(r.Header.Get(xhttp.MinIOSourceObjectLegalHoldTimestamp))
 	lholdtimestmp := mtime
 	if lholdtimeStr != "" {
@@ -261,6 +279,7 @@ func putOpts(ctx context.Context, r *http.Request, bucket, object string, metada
 			}
 		}
 	}
+	// 解析请求头中X-Minio-Source-Replication-Tagging-Timestamp参数的值
 	tagtimeStr := strings.TrimSpace(r.Header.Get(xhttp.MinIOSourceTaggingTimestamp))
 	taggingtimestmp := mtime
 	if tagtimeStr != "" {
@@ -274,6 +293,10 @@ func putOpts(ctx context.Context, r *http.Request, bucket, object string, metada
 		}
 	}
 
+	// 解析请求头中x-minio-source-etag参数的值
+	// 如果该参数的值不为空，保存到metadata中。
+	// PutObject请求的场合，在传入该函数前至少已经保存了Content-Type和Content-Encoding两个参数的值
+	// 此处保存对象的标签值
 	etag := strings.TrimSpace(r.Header.Get(xhttp.MinIOSourceETag))
 	if etag != "" {
 		if metadata == nil {
@@ -302,11 +325,14 @@ func putOpts(ctx context.Context, r *http.Request, bucket, object string, metada
 		opts.UserDefined = metadata
 		return
 	}
+	// 判断请求头中是否包含有任一一种SSE-KMS的参数
 	if crypto.S3KMS.IsRequested(r.Header) {
+		// 解析请求头中的SSE-KMS相关参数，返回SSE-KMS的KeyID，context。
 		keyID, context, err := crypto.S3KMS.ParseHTTP(r.Header)
 		if err != nil {
 			return ObjectOptions{}, err
 		}
+		// 用解析的KeyID和Context创建新的kms结构体实例，该结构体实现了服务器端接口
 		sseKms, err := encrypt.NewSSEKMS(keyID, context)
 		if err != nil {
 			return ObjectOptions{}, err

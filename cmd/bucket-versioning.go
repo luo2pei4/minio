@@ -24,6 +24,7 @@ import "github.com/minio/minio/internal/bucket/versioning"
 type BucketVersioningSys struct{}
 
 // Enabled enabled versioning?
+// 从globalBucketMetadataSys获取指定桶是否支持多版本
 func (sys *BucketVersioningSys) Enabled(bucket string) bool {
 	vc, err := globalBucketMetadataSys.GetVersioningConfig(bucket)
 	if err != nil {

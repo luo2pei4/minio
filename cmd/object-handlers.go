@@ -1729,6 +1729,7 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		sha256hex = ""
 	}
 
+	// 把request的body部分做了一下wrap，包装了从reader中获取的数据的MD5和sha256值。
 	hashReader, err := hash.NewReader(reader, size, md5hex, sha256hex, actualSize)
 	if err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
@@ -1740,6 +1741,7 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 	pReader := NewPutObjReader(rawReader)
 
 	// get gateway encryption options
+	// 设置上传对象的选项，主要包括多版本、加密、代理和复制功能相关参数。
 	var opts ObjectOptions
 	opts, err = putOpts(ctx, r, bucket, object, metadata)
 	if err != nil {
@@ -1751,9 +1753,11 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		putObject = api.CacheAPI().PutObject
 	}
 
+	// 检查用户是否具有PutObjectRetention和PutObjectLegalHold两个操作的权限
 	retPerms := isPutActionAllowed(ctx, getRequestAuthType(r), bucket, object, r, iampolicy.PutObjectRetentionAction)
 	holdPerms := isPutActionAllowed(ctx, getRequestAuthType(r), bucket, object, r, iampolicy.PutObjectLegalHoldAction)
 
+	// 从传入的对象中获取GetObjectInfo函数
 	getObjectInfo := objectAPI.GetObjectInfo
 	if api.CacheAPI() != nil {
 		getObjectInfo = api.CacheAPI().GetObjectInfo

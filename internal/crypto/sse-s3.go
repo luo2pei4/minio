@@ -44,6 +44,8 @@ var (
 // domain is "SSE-S3".
 func (sses3) String() string { return "SSE-S3" }
 
+// 判断请求头中是否含有X-Amz-Server-Side-Encryption参数，并且X-Amz-Server-Side-Encryption参数的值等于aws:kms
+// 满足上述条件返回true，不满足返回false
 func (sses3) IsRequested(h http.Header) bool {
 	_, ok := h[xhttp.AmzServerSideEncryption]
 	// Return only true if the SSE header is specified and does not contain the SSE-KMS value
@@ -61,6 +63,8 @@ func (sses3) ParseHTTP(h http.Header) error {
 
 // IsEncrypted returns true if the object metadata indicates
 // that the object was uploaded using SSE-S3.
+// 判断metadata中是否有X-Minio-Internal-Server-Side-Encryption-S3-Sealed-Key
+// 如果存在返回true，如果不存在返回false
 func (sses3) IsEncrypted(metadata map[string]string) bool {
 	if _, ok := metadata[MetaSealedKeyS3]; ok {
 		return true
