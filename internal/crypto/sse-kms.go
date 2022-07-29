@@ -47,6 +47,8 @@ func (ssekms) String() string { return "SSE-KMS" }
 
 // IsRequested returns true if the HTTP headers contains
 // at least one SSE-KMS header.
+// 1、请求头中含有X-Amz-Server-Side-Encryption-Aws-Kms-Key-Id参数或X-Amz-Server-Side-Encryption-Context参数，返回true
+// 2、判断请求头中是否含有X-Amz-Server-Side-Encryption参数，并且X-Amz-Server-Side-Encryption参数的值不等于AES256，满足条件返回true
 func (ssekms) IsRequested(h http.Header) bool {
 	if _, ok := h[xhttp.AmzServerSideEncryptionKmsID]; ok {
 		return true

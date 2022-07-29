@@ -363,6 +363,7 @@ func ParseObjectRetention(reader io.Reader) (*ObjectRetention, error) {
 }
 
 // IsObjectLockRetentionRequested returns true if object lock retention headers are set.
+// 请求头中含有X-Amz-Object-Lock-Mode或X-Amz-Object-Lock-Retain-Until-Date则返回true
 func IsObjectLockRetentionRequested(h http.Header) bool {
 	if _, ok := h[AmzObjectLockMode]; ok {
 		return true
@@ -374,6 +375,7 @@ func IsObjectLockRetentionRequested(h http.Header) bool {
 }
 
 // IsObjectLockLegalHoldRequested returns true if object lock legal hold header is set.
+// 请求头中含有X-Amz-Object-Lock-Legal-Hold参数则返回true
 func IsObjectLockLegalHoldRequested(h http.Header) bool {
 	_, ok := h[AmzObjectLockLegalHold]
 	return ok

@@ -1682,6 +1682,7 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		}
 	}
 
+	// 判断配额hard模式下是否新增对象大小是否会超过配额
 	if err := enforceBucketQuotaHard(ctx, bucket, size); err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
 		return
@@ -1702,7 +1703,10 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// Check if bucket encryption is enabled
+	// 通过桶名获取桶的SSE(server-side encryption)配置信息
+	// 实际是通过globalBucketMetadataSys实例，调用BucketMetadataSys结构体的GetSSEConfig方法来获取的。
 	sseConfig, _ := globalBucketSSEConfigSys.Get(bucket)
+	// 向请求头中设置加密类型和算法参数
 	sseConfig.Apply(r.Header, sse.ApplyOptions{
 		AutoEncrypt: globalAutoEncryption,
 		Passthrough: globalIsGateway && globalGatewayName == S3BackendGateway,
@@ -1763,6 +1767,7 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		getObjectInfo = api.CacheAPI().GetObjectInfo
 	}
 
+	// 检查对象锁相关信息
 	retentionMode, retentionDate, legalHold, s3Err := checkPutObjectLockAllowed(ctx, r, bucket, object, getObjectInfo, retPerms, holdPerms)
 	if s3Err == ErrNone && retentionMode.Valid() {
 		metadata[strings.ToLower(xhttp.AmzObjectLockMode)] = string(retentionMode)
@@ -2247,6 +2252,7 @@ func (api objectAPIHandlers) NewMultipartUploadHandler(w http.ResponseWriter, r 
 	})
 
 	// Validate storage class metadata if present
+	// 存储类型验证。从请求头中获取x-amz-storage-class参数的值，如果该参数的值不等于STANDARD或RRS则返回错误。
 	if sc := r.Header.Get(xhttp.AmzStorageClass); sc != "" {
 		if !storageclass.IsValid(sc) {
 			writeErrorResponse(ctx, w, errorCodes.ToAPIErr(ErrInvalidStorageClass), r.URL)
@@ -2256,8 +2262,11 @@ func (api objectAPIHandlers) NewMultipartUploadHandler(w http.ResponseWriter, r 
 
 	encMetadata := map[string]string{}
 
+	// 集群模式下，erasureServerPools结构体的该方法直接返回true，表示支持加密特性。
 	if objectAPI.IsEncryptionSupported() {
+		// 检查是否有SSE加密设置
 		if _, ok := crypto.IsRequested(r.Header); ok {
+			// 根据header中定义的加密参数，生成加密信息主要是KeyID、密文和sealedKey
 			if err = setEncryptionMetadata(r, bucket, object, encMetadata); err != nil {
 				writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
 				return

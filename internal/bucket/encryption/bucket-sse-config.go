@@ -127,7 +127,9 @@ type ApplyOptions struct {
 // Apply does not overwrite any existing SSE headers. Further, it will
 // set minimal SSE-KMS headers if autoEncrypt is true and the BucketSSEConfig
 // is nil.
+// 向请求头中设置加密类型和加密算法。如果请求头中本已经包含了加密类型的相关参数，则不做处理
 func (b *BucketSSEConfig) Apply(headers http.Header, opts ApplyOptions) {
+	// 如果请求头中设置了S3、S3KMS或SSEC任一一种加密方式的参数，则返回
 	if _, ok := crypto.IsRequested(headers); ok {
 		return
 	}

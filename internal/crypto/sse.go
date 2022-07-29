@@ -58,6 +58,7 @@ type Type interface {
 //
 // If no SSE headers are present then IsRequested returns false
 // and no Type.
+// 检查请求头中是否带有SSE相关参数，如果有就返回加密类型和true
 func IsRequested(h http.Header) (Type, bool) {
 	switch {
 	case S3.IsRequested(h):

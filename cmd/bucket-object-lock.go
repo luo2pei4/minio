@@ -267,14 +267,18 @@ func checkPutObjectLockAllowed(ctx context.Context, rq *http.Request, bucket, ob
 	var retainDate objectlock.RetentionDate
 	var legalHold objectlock.ObjectLegalHold
 
+	// 判断请求头中是否包含对象保留相关参数
 	retentionRequested := objectlock.IsObjectLockRetentionRequested(rq.Header)
+	// 判断请求头中是否包含对象合规保留相关参数
 	legalHoldRequested := objectlock.IsObjectLockLegalHoldRequested(rq.Header)
 
+	// 获取指定桶的对象保留配置信息
 	retentionCfg, err := globalBucketObjectLockSys.Get(bucket)
 	if err != nil {
 		return mode, retainDate, legalHold, ErrInvalidBucketObjectLockConfiguration
 	}
 
+	// 如果配置中对象锁特性为打开，但是请求头参数中包含了相关对象保留的设置参数，则返回错误
 	if !retentionCfg.LockEnabled {
 		if legalHoldRequested || retentionRequested {
 			return mode, retainDate, legalHold, ErrInvalidBucketObjectLockConfiguration
@@ -289,6 +293,7 @@ func checkPutObjectLockAllowed(ctx context.Context, rq *http.Request, bucket, ob
 		return mode, retainDate, legalHold, toAPIErrorCode(ctx, err)
 	}
 
+	// 判断请求头中的X-Amz-Replication-Status参数是否为REPLICA
 	replica := rq.Header.Get(xhttp.AmzBucketReplicationStatus) == replication.Replica.String()
 
 	if opts.VersionID != "" && !replica {

@@ -44,6 +44,10 @@ func (ssec) String() string { return "SSE-C" }
 
 // IsRequested returns true if the HTTP headers contains
 // at least one SSE-C header. SSE-C copy headers are ignored.
+// 请求头中含有下列任一参数返回true
+//   1、X-Amz-Server-Side-Encryption-Customer-Algorithm
+//   2、X-Amz-Server-Side-Encryption-Customer-Key
+//   3、X-Amz-Server-Side-Encryption-Customer-Key-Md5
 func (ssec) IsRequested(h http.Header) bool {
 	if _, ok := h[xhttp.AmzServerSideEncryptionCustomerAlgorithm]; ok {
 		return true
