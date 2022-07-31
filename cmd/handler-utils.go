@@ -111,7 +111,7 @@ var userMetadataKeyPrefixes = []string{
 }
 
 // extractMetadata extracts metadata from HTTP header and HTTP queryString.
-// 提取请求的query和header中的kv，并写入一个叫metadata的map中。
+// 提取请求的form和header中的kv，并写入一个叫metadata的map中。
 // 如果metadata中不包含Content-Type，设置默认的Content-Type为binary/octet-stream
 // 如果metadata中包含X-Amz-Meta-X-Amz-Unencrypted-Content-Length和X-Amz-Meta-X-Amz-Unencrypted-Content-Md5两key，则删除这两个key
 // 如果metadata中的Content-Encoding参数的值包含aws-chunked，去掉该字符串。如果去掉后的值为空串，则从metadata中删除Content-Encoding。
@@ -132,17 +132,23 @@ func extractMetadata(ctx context.Context, r *http.Request) (metadata map[string]
 	}
 
 	// Set content-type to default value if it is not set.
+	// 如果没有设置Content-Type参数，则设置Content-Type参数值为"binary/octet-stream"
 	if _, ok := metadata[strings.ToLower(xhttp.ContentType)]; !ok {
 		metadata[strings.ToLower(xhttp.ContentType)] = "binary/octet-stream"
 	}
 
 	// https://github.com/google/security-research/security/advisories/GHSA-76wf-9vgp-pj7w
+	// 删除下列两个参数
+	//  1. X-Amz-Meta-X-Amz-Unencrypted-Content-Length
+	//  2. X-Amz-Meta-X-Amz-Unencrypted-Content-Md5
 	for k := range metadata {
 		if equals(k, xhttp.AmzMetaUnencryptedContentLength, xhttp.AmzMetaUnencryptedContentMD5) {
 			delete(metadata, k)
 		}
 	}
 
+	// 如果Content-Encoding参数中有多个值，且包含aws-chunked，删除aws-chunked。
+	// 如果只包含aws-chunked，从metadata中删除Content-Encoding
 	if contentEncoding, ok := metadata[strings.ToLower(xhttp.ContentEncoding)]; ok {
 		contentEncoding = trimAwsChunkedContentEncoding(contentEncoding)
 		if contentEncoding != "" {
@@ -166,12 +172,15 @@ func extractMetadata(ctx context.Context, r *http.Request) (metadata map[string]
 }
 
 // extractMetadata extracts metadata from map values.
+// 提取request form或header中mime参数，将首支持的mime参数和含有"x-amz-meta-"和"x-minio-meta-"的参数
+// 保存到map中并返回，单个mine参数有多个值的场合，用逗号拼接为一个字符串。
 func extractMetadataFromMime(ctx context.Context, v textproto.MIMEHeader, m map[string]string) error {
 	if v == nil {
 		logger.LogIf(ctx, errInvalidArgument)
 		return errInvalidArgument
 	}
 
+	// 从request form中提取所有的mime信息
 	nv := make(textproto.MIMEHeader, len(v))
 	for k, kv := range v {
 		// Canonicalize all headers, to remove any duplicates.
@@ -179,6 +188,7 @@ func extractMetadataFromMime(ctx context.Context, v textproto.MIMEHeader, m map[
 	}
 
 	// Save all supported headers.
+	// 保存请求中受支持的mime信息，单个mine参数有多个值的场合，用逗号拼接为一个字符串
 	for _, supportedHeader := range supportedHeaders {
 		value, ok := nv[http.CanonicalHeaderKey(supportedHeader)]
 		if ok {
@@ -186,6 +196,8 @@ func extractMetadataFromMime(ctx context.Context, v textproto.MIMEHeader, m map[
 		}
 	}
 
+	// 遍历request form中的mime参数，保存含有"x-amz-meta-"和"x-minio-meta-"前缀的mime参数
+	// 单个mine参数有多个值的场合，用逗号拼接为一个字符串
 	for key := range v {
 		for _, prefix := range userMetadataKeyPrefixes {
 			if !strings.HasPrefix(strings.ToLower(key), strings.ToLower(prefix)) {

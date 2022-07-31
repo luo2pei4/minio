@@ -1618,8 +1618,8 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// 提取请求中query和header的数据，并保存到名称为metadata的map中
-	// extractMetadata主要对Content-Type和Content-Encoding两个参数进行处理
+	// 提取请求中form和header的数据，并保存到名称为metadata的map中
+	// extractMetadata提取request的form和header中的参数。
 	metadata, err := extractMetadata(ctx, r)
 	if err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
@@ -1769,17 +1769,21 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 
 	// 检查上传对象的保留特性，返回保留模式、保留终止日期、依法保留特性状态和错误信息
 	retentionMode, retentionDate, legalHold, s3Err := checkPutObjectLockAllowed(ctx, r, bucket, object, getObjectInfo, retPerms, holdPerms)
+	// 如果检查结果没有错误，并且保留模式是有效的值，将保留模式和保留终止日期存入metadata
 	if s3Err == ErrNone && retentionMode.Valid() {
 		metadata[strings.ToLower(xhttp.AmzObjectLockMode)] = string(retentionMode)
 		metadata[strings.ToLower(xhttp.AmzObjectLockRetainUntilDate)] = retentionDate.UTC().Format(iso8601TimeFormat)
 	}
+	// 如果检查结果没有错误，并且依法保留状态是有效的值，将依法保留的状态值保存到metadata中
 	if s3Err == ErrNone && legalHold.Status.Valid() {
 		metadata[strings.ToLower(xhttp.AmzObjectLockLegalHold)] = string(legalHold.Status)
 	}
+	// 如果检查结果有错误，将错误信息写入response并直接返回
 	if s3Err != ErrNone {
 		writeErrorResponse(ctx, w, errorCodes.ToAPIErr(s3Err), r.URL)
 		return
 	}
+
 	if dsc := mustReplicate(ctx, bucket, object, getMustReplicateOptions(ObjectInfo{
 		UserDefined: metadata,
 	}, replication.ObjectReplicationType, opts)); dsc.ReplicateAny() {

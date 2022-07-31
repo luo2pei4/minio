@@ -156,11 +156,14 @@ func getMustReplicateOptions(o ObjectInfo, op replication.Type, opts ObjectOptio
 			op = replication.MetadataReplicationType
 		}
 	}
+	// 复制传入的metadata
 	meta := cloneMSS(o.UserDefined)
+	// PutObject的场合，没有UserTags
 	if o.UserTags != "" {
 		meta[xhttp.AmzObjectTagging] = o.UserTags
 	}
 
+	// PutObject的场合op为1；o.ReplicationStatus为0值；如果请求头中有X-Minio-Source-Replication-Request参数为true
 	return mustReplicateOptions{
 		meta:               meta,
 		status:             o.ReplicationStatus,
