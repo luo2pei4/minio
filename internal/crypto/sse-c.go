@@ -44,6 +44,10 @@ func (ssec) String() string { return "SSE-C" }
 
 // IsRequested returns true if the HTTP headers contains
 // at least one SSE-C header. SSE-C copy headers are ignored.
+// 请求头中含有下列任一参数返回true
+//   1. X-Amz-Server-Side-Encryption-Customer-Algorithm
+//   2. X-Amz-Server-Side-Encryption-Customer-Key
+//   3. X-Amz-Server-Side-Encryption-Customer-Key-Md5
 func (ssec) IsRequested(h http.Header) bool {
 	if _, ok := h[xhttp.AmzServerSideEncryptionCustomerAlgorithm]; ok {
 		return true
@@ -69,6 +73,9 @@ func (ssec) IsEncrypted(metadata map[string]string) bool {
 
 // ParseHTTP parses the SSE-C headers and returns the SSE-C client key
 // on success. SSE-C copy headers are ignored.
+// 如果请求头中X-Amz-Server-Side-Encryption-Customer-Algorithm参数的值不为AES256，返回错误
+// 如果请求头中X-Amz-Server-Side-Encryption-Customer-Key参数值为空，返回错误
+// 如果请求头中X-Amz-Server-Side-Encryption-Customer-Key-Md5参数的值为空，返回错误
 func (ssec) ParseHTTP(h http.Header) (key [32]byte, err error) {
 	if h.Get(xhttp.AmzServerSideEncryptionCustomerAlgorithm) != xhttp.AmzEncryptionAES {
 		return key, ErrInvalidCustomerAlgorithm
@@ -80,14 +87,20 @@ func (ssec) ParseHTTP(h http.Header) (key [32]byte, err error) {
 		return key, ErrMissingCustomerKeyMD5
 	}
 
+	// 解码请求头中X-Amz-Server-Side-Encryption-Customer-Key参数值，
+	// 如果解析结果的长度不为32，则返回错误
 	clientKey, err := base64.StdEncoding.DecodeString(h.Get(xhttp.AmzServerSideEncryptionCustomerKey))
 	if err != nil || len(clientKey) != 32 { // The client key must be 256 bits long
 		return key, ErrInvalidCustomerKey
 	}
+	// 解码请求头中X-Amz-Server-Side-Encryption-Customer-Key-Md5参数值，
+	// 用X-Amz-Server-Side-Encryption-Customer-Key参数值解码出来的结果做md5sum运算，
+	// 运算结果不等于X-Amz-Server-Side-Encryption-Customer-Key-Md5参数值解码结果，则返回错误
 	keyMD5, err := base64.StdEncoding.DecodeString(h.Get(xhttp.AmzServerSideEncryptionCustomerKeyMD5))
 	if md5Sum := md5.Sum(clientKey); err != nil || !bytes.Equal(md5Sum[:], keyMD5) {
 		return key, ErrCustomerKeyMD5Mismatch
 	}
+	// 返回X-Amz-Server-Side-Encryption-Customer-Key参数值的解码结果
 	copy(key[:], clientKey)
 	return key, nil
 }

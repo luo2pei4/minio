@@ -44,7 +44,8 @@ var (
 // domain is "SSE-S3".
 func (sses3) String() string { return "SSE-S3" }
 
-// 判断请求头中是否含有X-Amz-Server-Side-Encryption参数，并且X-Amz-Server-Side-Encryption参数的值等于aws:kms
+// 判断请求头中是否含有X-Amz-Server-Side-Encryption参数，
+// 且X-Amz-Server-Side-Encryption参数的值不等于aws:kms
 // 满足上述条件返回true，不满足返回false
 func (sses3) IsRequested(h http.Header) bool {
 	_, ok := h[xhttp.AmzServerSideEncryption]

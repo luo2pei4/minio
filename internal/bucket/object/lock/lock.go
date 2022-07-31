@@ -52,6 +52,9 @@ func (r RetMode) Valid() bool {
 	return false
 }
 
+// 解析保留策略，只有以下两种:
+//  1. 监管模式(GOVERNANCE)
+//  2. 合规性模式(COMPLIANCE)
 func parseRetMode(modeStr string) (mode RetMode) {
 	switch strings.ToUpper(modeStr) {
 	case "GOVERNANCE":
@@ -82,6 +85,9 @@ func (l LegalHoldStatus) Valid() bool {
 	return false
 }
 
+// 解析传入参数，返回依法保留特性的状态值。只有以下两种
+//  1.ON
+//  2.OFF
 func parseLegalHoldStatus(holdStr string) (st LegalHoldStatus) {
 	switch strings.ToUpper(holdStr) {
 	case "ON":
@@ -126,6 +132,7 @@ var ntpServer = env.Get(ntpServerEnv, "")
 // UTCNowNTP - is similar in functionality to UTCNow()
 // but only used when we do not wish to rely on system
 // time.
+// 如果设置了NTP服务配置，从NTP服务获取当前时间；如果没有设置，从本机获取当前时间。
 func UTCNowNTP() (time.Time, error) {
 	// ntp server is disabled
 	if ntpServer == "" {
@@ -363,6 +370,7 @@ func ParseObjectRetention(reader io.Reader) (*ObjectRetention, error) {
 }
 
 // IsObjectLockRetentionRequested returns true if object lock retention headers are set.
+// 请求中设置了锁定保留（X-Amz-Object-Lock-Mode）或保留终止日期（X-Amz-Object-Lock-Retain-Until-Date）参数返回true
 func IsObjectLockRetentionRequested(h http.Header) bool {
 	if _, ok := h[AmzObjectLockMode]; ok {
 		return true
@@ -374,6 +382,7 @@ func IsObjectLockRetentionRequested(h http.Header) bool {
 }
 
 // IsObjectLockLegalHoldRequested returns true if object lock legal hold header is set.
+// 请求中设置了锁定依法保留（X-Amz-Object-Lock-Legal-Hold）参数返回true
 func IsObjectLockLegalHoldRequested(h http.Header) bool {
 	_, ok := h[AmzObjectLockLegalHold]
 	return ok
@@ -390,13 +399,16 @@ func IsObjectLockRequested(h http.Header) bool {
 }
 
 // ParseObjectLockRetentionHeaders parses http headers to extract retention mode and retention date
+// 解析锁定保留相关参数
 func ParseObjectLockRetentionHeaders(h http.Header) (rmode RetMode, r RetentionDate, err error) {
+	// 保留模式和保留终止日期必须同时设置，否则返回无效的的请求头错误
 	retMode := h.Get(AmzObjectLockMode)
 	dateStr := h.Get(AmzObjectLockRetainUntilDate)
 	if len(retMode) == 0 || len(dateStr) == 0 {
 		return rmode, r, ErrObjectLockInvalidHeaders
 	}
 
+	// 解析保留模式
 	rmode = parseRetMode(retMode)
 	if !rmode.Valid() {
 		return rmode, r, ErrUnknownWORMModeDirective
@@ -417,14 +429,23 @@ func ParseObjectLockRetentionHeaders(h http.Header) (rmode RetMode, r RetentionD
 		return rmode, r, ErrPastObjectLockRetainDate
 	}
 
+	// 如果保留终止日期小于当前日期，返回错误信息。
+	// 保留终止日期不能小于当前日期
 	if retDate.Before(t) {
 		return rmode, r, ErrPastObjectLockRetainDate
 	}
 
+	// 返回保留模式和保留终止日期
 	return rmode, RetentionDate{retDate}, nil
 }
 
 // GetObjectRetentionMeta constructs ObjectRetention from metadata
+// 判断传入map中是否包含key为X-Amz-Object-Lock-Mode的项。
+// 如果没有，直接返回一个初始化的ObjectRetention结构体
+// 如果有，解析保留策略，只能是监管模式(GOVERNANCE)和合规性模式(COMPLIANCE)两种
+// 判断传入map中是否包含key为X-Amz-Object-Lock-Retain-Until-Date的项
+// 如果有，解析保留终止日期。
+// 该函数返回的结构体中保存对象保存模式和保存终止日期
 func GetObjectRetentionMeta(meta map[string]string) ObjectRetention {
 	var mode RetMode
 	var retainTill RetentionDate
@@ -455,6 +476,9 @@ func GetObjectRetentionMeta(meta map[string]string) ObjectRetention {
 }
 
 // GetObjectLegalHoldMeta constructs ObjectLegalHold from metadata
+// 判断传入参数中是否有key为X-Amz-Object-Lock-Legal-Hold的项
+// 如果有解析该项的值，保存到ObjectLegalHold结构体实例，返回该ObjectLegalHold结构体实例
+// 如果没有，返回初始化的ObjectLegalHold结构体实例
 func GetObjectLegalHoldMeta(meta map[string]string) ObjectLegalHold {
 	holdStr, ok := meta[strings.ToLower(AmzObjectLockLegalHold)]
 	if !ok {
@@ -467,6 +491,9 @@ func GetObjectLegalHoldMeta(meta map[string]string) ObjectLegalHold {
 }
 
 // ParseObjectLockLegalHoldHeaders parses request headers to construct ObjectLegalHold
+// 请求头中是否包含依法保留特性的参数(X-Amz-Object-Lock-Legal-Hold)，
+// 如果有，解析该参数的值是否为ON或OFF，如果不是这两个值，返回错误。
+// 如果没有，直接返回。
 func ParseObjectLockLegalHoldHeaders(h http.Header) (lhold ObjectLegalHold, err error) {
 	holdStatus, ok := h[AmzObjectLockLegalHold]
 	if ok {

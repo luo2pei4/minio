@@ -261,82 +261,113 @@ func enforceRetentionBypassForPut(ctx context.Context, r *http.Request, oi Objec
 // returns an error. For objects in "Governance" mode, overwrite is allowed if the retention date has expired.
 // For objects in "Compliance" mode, retention date cannot be shortened, and mode cannot be altered.
 // For objects with legal hold header set, the s3:PutObjectLegalHold permission is expected to be set
-// Both legal hold and retention can be applied independently on an object
+// Both legal hold and retention can be applied independently on an object.
+// 检查上传对象是否设置了锁定保留策略.
 func checkPutObjectLockAllowed(ctx context.Context, rq *http.Request, bucket, object string, getObjectInfoFn GetObjectInfoFn, retentionPermErr, legalHoldPermErr APIErrorCode) (objectlock.RetMode, objectlock.RetentionDate, objectlock.ObjectLegalHold, APIErrorCode) {
 	var mode objectlock.RetMode
 	var retainDate objectlock.RetentionDate
 	var legalHold objectlock.ObjectLegalHold
 
+	// 判断上传对象是否设置锁定保留参数
 	retentionRequested := objectlock.IsObjectLockRetentionRequested(rq.Header)
+	// 判断上传对象是否设置依法保留参数
 	legalHoldRequested := objectlock.IsObjectLockLegalHoldRequested(rq.Header)
 
+	// 从globalBucketObjectLockSys中获取指定桶的保留策略配置
 	retentionCfg, err := globalBucketObjectLockSys.Get(bucket)
 	if err != nil {
 		return mode, retainDate, legalHold, ErrInvalidBucketObjectLockConfiguration
 	}
 
 	if !retentionCfg.LockEnabled {
+		// 如果桶没有开启保留特性，但是对象上传请求中含有锁定保留或锁定依法保留设置则返回错误信息
 		if legalHoldRequested || retentionRequested {
 			return mode, retainDate, legalHold, ErrInvalidBucketObjectLockConfiguration
 		}
 
 		// If this not a WORM enabled bucket, we should return right here.
+		// 如果桶没有开启保留特性，且对象上传请求中没有保留特性的相关参数，则正常返回。
+		// 保留模式、保留终止日，依法保留返回零值
 		return mode, retainDate, legalHold, ErrNone
 	}
 
+	// 获取对象上传选项(objectOption)。主要设置以下内容
+	//   1. part number
+	//   2. version id
+	//   3. force delete
+	//   4. SSE
+	//   5. delete marker
 	opts, err := getOpts(ctx, rq, bucket, object)
 	if err != nil {
 		return mode, retainDate, legalHold, toAPIErrorCode(ctx, err)
 	}
 
+	// 判断是否是复制操作
 	replica := rq.Header.Get(xhttp.AmzBucketReplicationStatus) == replication.Replica.String()
 
+	// 如果versionid不为空，且不是复制操作的场合
+	// 多版本开启的场景下，如果对象开了保留策略，需要对依据保留策略对是否允许上传对象进行检查
 	if opts.VersionID != "" && !replica {
+		// 调用传入的getObjectInfo方法获取指定对象数据，集群模式下，调用的是erasureServerPool结构体的GetObjectInfo方法
 		if objInfo, err := getObjectInfoFn(ctx, bucket, object, opts); err == nil {
+			// 从对象信息中获取对象的保留策略数据，包括保留模式和保留终止日期。
 			r := objectlock.GetObjectRetentionMeta(objInfo.UserDefined)
+			// 获取当前时间
 			t, err := objectlock.UTCNowNTP()
 			if err != nil {
 				logger.LogIf(ctx, err)
 				return mode, retainDate, legalHold, ErrObjectLocked
 			}
+			// 如果保留策略为合规性模式(compliance)，并且当前时间小于保留终止日期，返回对象被锁定异常
 			if r.Mode == objectlock.RetCompliance && r.RetainUntilDate.After(t) {
 				return mode, retainDate, legalHold, ErrObjectLocked
 			}
 			mode = r.Mode
 			retainDate = r.RetainUntilDate
+			// 从对象信息中获取依法保留配置信息，主要是依法保留特性是开启还是关闭状态
 			legalHold = objectlock.GetObjectLegalHoldMeta(objInfo.UserDefined)
 			// Disallow overwriting an object on legal hold
+			// 如果依法保留状态为开启，则返回对象被锁定异常
 			if legalHold.Status == objectlock.LegalHoldOn {
 				return mode, retainDate, legalHold, ErrObjectLocked
 			}
 		}
 	}
 
+	// 上传对象是设置了依法保留参数
 	if legalHoldRequested {
 		var lerr error
+		// 解析依法保留参数的值，如果解析请求出错，返回错误
 		if legalHold, lerr = objectlock.ParseObjectLockLegalHoldHeaders(rq.Header); lerr != nil {
 			return mode, retainDate, legalHold, toAPIErrorCode(ctx, err)
 		}
 	}
 
+	// 上传对象设置了锁定保留参数
 	if retentionRequested {
+		// 解析依法保留参数的值，如果解析请求出错，返回错误
 		legalHold, err := objectlock.ParseObjectLockLegalHoldHeaders(rq.Header)
 		if err != nil {
 			return mode, retainDate, legalHold, toAPIErrorCode(ctx, err)
 		}
+		// 解析保留特性相关参数，获取保留模式和保留终止日期
 		rMode, rDate, err := objectlock.ParseObjectLockRetentionHeaders(rq.Header)
 		if err != nil {
 			return mode, retainDate, legalHold, toAPIErrorCode(ctx, err)
 		}
+		// 如果用户不具备PutObjectRetention操作权限，直接返回
 		if retentionPermErr != ErrNone {
 			return mode, retainDate, legalHold, retentionPermErr
 		}
 		return rMode, rDate, legalHold, ErrNone
 	}
+	// 复制的场合，继承源的保留元数据
 	if replica { // replica inherits retention metadata only from source
 		return "", objectlock.RetentionDate{}, legalHold, ErrNone
 	}
+	// 请求中没有设定保留特性相关参数，但是桶的保留有效期时长大于0的场合
 	if !retentionRequested && retentionCfg.Validity > 0 {
+		// 如果用户不具备PutObjectRetention操作权限，直接返回
 		if retentionPermErr != ErrNone {
 			return mode, retainDate, legalHold, retentionPermErr
 		}
@@ -347,8 +378,10 @@ func checkPutObjectLockAllowed(ctx context.Context, rq *http.Request, bucket, ob
 			return mode, retainDate, legalHold, ErrObjectLocked
 		}
 
+		// 请求中没有设定依法保留特性相关参数，但是桶的保留特性为开启的场合
 		if !legalHoldRequested && retentionCfg.LockEnabled {
 			// inherit retention from bucket configuration
+			// 返回对象的保留模式为桶的保留模式，对象的保留终止日期为当前日期加桶的保留有效时长
 			return retentionCfg.Mode, objectlock.RetentionDate{Time: t.Add(retentionCfg.Validity)}, legalHold, ErrNone
 		}
 		return "", objectlock.RetentionDate{}, legalHold, ErrNone

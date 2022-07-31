@@ -33,11 +33,13 @@ import (
 )
 
 // set encryption options for pass through to backend in the case of gateway and UserDefined metadata
+// 在网关和 UserDefined 元数据的情况下设置传递到后端的加密选项
 func getDefaultOpts(header http.Header, copySource bool, metadata map[string]string) (opts ObjectOptions, err error) {
 	var clientKey [32]byte
 	var sse encrypt.ServerSide
 
 	opts = ObjectOptions{UserDefined: metadata}
+	// 当前文件中getOpts函数调用的场合，copySource为false
 	if copySource {
 		if crypto.SSECopy.IsRequested(header) {
 			clientKey, err = crypto.SSECopy.ParseHTTP(header)
@@ -53,8 +55,9 @@ func getDefaultOpts(header http.Header, copySource bool, metadata map[string]str
 		return
 	}
 
-	// 判断请求头中是否含有SSE-C相关的参数，有的情况取出相关KeyID，context
+	// 判断请求头中是否含有SSE-C相关的参数
 	if crypto.SSEC.IsRequested(header) {
+		// 返回X-Amz-Server-Side-Encryption-Customer-Key参数值的解码结果
 		clientKey, err = crypto.SSEC.ParseHTTP(header)
 		if err != nil {
 			return
@@ -62,6 +65,7 @@ func getDefaultOpts(header http.Header, copySource bool, metadata map[string]str
 		if sse, err = encrypt.NewSSEC(clientKey[:]); err != nil {
 			return
 		}
+		// 设置服务端加密信息并返回
 		opts.ServerSideEncryption = sse
 		return
 	}
@@ -89,6 +93,9 @@ func getOpts(ctx context.Context, r *http.Request, bucket, object string) (Objec
 
 	var partNumber int
 	var err error
+	// 检查请求中是否带有partNumber参数（在url的query部分），
+	// 如果设置了partNumber，判断该参数的值是否是数字且小于等于0，
+	// 如果不是数值或小于等于0，则返回错误
 	if pn := r.Form.Get(xhttp.PartNumber); pn != "" {
 		partNumber, err = strconv.Atoi(pn)
 		if err != nil {
@@ -99,6 +106,9 @@ func getOpts(ctx context.Context, r *http.Request, bucket, object string) (Objec
 		}
 	}
 
+	// 判断请求中是否带有versionId参数，
+	// 如果带有versionId参数，且该参数的值不为空或"null"，则进一步判断是否是有效的UUID
+	// 如果不是有效的UUID则返回错误
 	vid := strings.TrimSpace(r.Form.Get(xhttp.VersionID))
 	if vid != "" && vid != nullVersionID {
 		_, err := uuid.Parse(vid)
@@ -112,6 +122,7 @@ func getOpts(ctx context.Context, r *http.Request, bucket, object string) (Objec
 		}
 	}
 
+	// ******网关的场景暂不做解析******
 	if GlobalGatewaySSE.SSEC() && crypto.SSEC.IsRequested(r.Header) {
 		key, err := crypto.SSEC.ParseHTTP(r.Header)
 		if err != nil {
@@ -127,6 +138,9 @@ func getOpts(ctx context.Context, r *http.Request, bucket, object string) (Objec
 		}, nil
 	}
 
+	// 判断请求头中是否含有强制删除（x-minio-force-delete）设置，
+	// 如果有强制删除设置，将该设置的值转换成bool类型值。
+	// 强制删除设置的值true时，表示该对象可以被强制删除（包含指定前缀删除的场景）。
 	deletePrefix := false
 	if d := r.Header.Get(xhttp.MinIOForceDelete); d != "" {
 		if b, err := strconv.ParseBool(d); err == nil {
@@ -137,6 +151,7 @@ func getOpts(ctx context.Context, r *http.Request, bucket, object string) (Objec
 	}
 
 	// default case of passing encryption headers to backend
+	// 设置加密相关内容
 	opts, err = getDefaultOpts(r.Header, false, nil)
 	if err != nil {
 		return opts, err
@@ -144,6 +159,9 @@ func getOpts(ctx context.Context, r *http.Request, bucket, object string) (Objec
 	opts.DeletePrefix = deletePrefix
 	opts.PartNumber = partNumber
 	opts.VersionID = vid
+	// 检查请求头中是否有x-minio-source-deletemarker参数。
+	// 如果有的话，解析该参数的值，如果是true和false以外的值则返回参数错误
+	// 该参数主要用于标明是否在用户端保留删除标识
 	delMarker := strings.TrimSpace(r.Header.Get(xhttp.MinIOSourceDeleteMarker))
 	if delMarker != "" {
 		switch delMarker {

@@ -1763,6 +1763,7 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		getObjectInfo = api.CacheAPI().GetObjectInfo
 	}
 
+	// 检查上传对象的保留特性，返回保留模式、保留终止日期、依法保留特性状态和错误信息
 	retentionMode, retentionDate, legalHold, s3Err := checkPutObjectLockAllowed(ctx, r, bucket, object, getObjectInfo, retPerms, holdPerms)
 	if s3Err == ErrNone && retentionMode.Valid() {
 		metadata[strings.ToLower(xhttp.AmzObjectLockMode)] = string(retentionMode)
