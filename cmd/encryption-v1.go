@@ -226,6 +226,8 @@ func rotateKey(oldKey []byte, newKeyID string, newKey []byte, bucket, object str
 	}
 }
 
+// 根据传入的不同加密类型，调用不同的方法生成ObjectKey，一个长度为32的byte数组。
+// 同时将生成的KeyID、密文和sealedKey存入传入的metadata变量中。
 func newEncryptMetadata(kind crypto.Type, keyID string, key []byte, bucket, object string, metadata map[string]string, ctx kms.Context) (crypto.ObjectKey, error) {
 	var sealedKey crypto.SealedKey
 	switch kind {
@@ -301,6 +303,7 @@ func setEncryptionMetadata(r *http.Request, bucket, object string, metadata map[
 		keyID string
 		ctx   kms.Context
 	)
+	// 获取加密类型
 	kind, _ := crypto.IsRequested(r.Header)
 	switch kind {
 	case crypto.SSEC:

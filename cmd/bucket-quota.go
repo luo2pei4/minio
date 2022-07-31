@@ -91,22 +91,27 @@ func parseBucketQuota(bucket string, data []byte) (quotaCfg *madmin.BucketQuota,
 	return
 }
 
+// 判断配额hard模式下是否新增对象大小是否会超过配额
 func (sys *BucketQuotaSys) enforceQuotaHard(ctx context.Context, bucket string, size int64) error {
 	if size < 0 {
 		return nil
 	}
 
+	// 获取桶的配额信息
 	q, err := sys.Get(ctx, bucket)
 	if err != nil {
 		return err
 	}
 
+	// 判断配额类型是否为hard，且配额大于0
 	if q != nil && q.Type == madmin.HardQuota && q.Quota > 0 {
+		// hard模式的场合，获取桶的使用量
 		bui, err := sys.GetBucketUsageInfo(bucket)
 		if err != nil {
 			return err
 		}
 
+		// 如果使用量大于0，并且已使用量+对象大小大于等于配额大小，返回错误
 		if bui.Size > 0 && ((bui.Size + uint64(size)) >= q.Quota) {
 			return BucketQuotaExceeded{Bucket: bucket}
 		}
@@ -115,6 +120,7 @@ func (sys *BucketQuotaSys) enforceQuotaHard(ctx context.Context, bucket string, 
 	return nil
 }
 
+// 判断配额hard模式下是否新增对象大小是否会超过配额
 func enforceBucketQuotaHard(ctx context.Context, bucket string, size int64) error {
 	if globalBucketQuotaSys == nil {
 		return nil

@@ -451,6 +451,7 @@ func serverMain(ctx *cli.Context) {
 	// Handle all server environment vars.
 	// 处理所有server命令的相关环境变量
 	// 主要还是将超级用户的名称和密码保存到全局变量globalActiveCred中
+	// 创建了全局的GlobalKMS变量（kesClient结构体对象，实现了KMS接口）
 	serverHandleEnvVars()
 
 	// Set node name, only set for distributed setup.

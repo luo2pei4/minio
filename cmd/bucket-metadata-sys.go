@@ -217,6 +217,7 @@ func (sys *BucketMetadataSys) GetTaggingConfig(bucket string) (*tags.Tags, error
 
 // GetObjectLockConfig returns configured object lock config
 // The returned object may not be modified.
+// 从桶的元数据子系统（一般为globalBucketMetadataSys）获取指定桶的对象锁配置
 func (sys *BucketMetadataSys) GetObjectLockConfig(bucket string) (*objectlock.Config, error) {
 	meta, err := sys.GetConfig(GlobalContext, bucket)
 	if err != nil {

@@ -279,6 +279,7 @@ func checkPutObjectLockAllowed(ctx context.Context, rq *http.Request, bucket, ob
 		return mode, retainDate, legalHold, ErrInvalidBucketObjectLockConfiguration
 	}
 
+	// 如果配置中对象锁特性为打开，但是请求头参数中包含了相关对象保留的设置参数，则返回错误
 	if !retentionCfg.LockEnabled {
 		// 如果桶没有开启保留特性，但是对象上传请求中含有锁定保留或锁定依法保留设置则返回错误信息
 		if legalHoldRequested || retentionRequested {
