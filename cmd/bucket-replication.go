@@ -149,6 +149,8 @@ func (o mustReplicateOptions) isMetadataReplication() bool {
 	return o.opType == replication.MetadataReplicationType
 }
 
+// 设置并返回mustReplicateOptions结构体实例
+// opts参数用于设置是否是replication request
 func getMustReplicateOptions(o ObjectInfo, op replication.Type, opts ObjectOptions) mustReplicateOptions {
 	if !op.Valid() {
 		op = replication.ObjectReplicationType
@@ -163,7 +165,7 @@ func getMustReplicateOptions(o ObjectInfo, op replication.Type, opts ObjectOptio
 		meta[xhttp.AmzObjectTagging] = o.UserTags
 	}
 
-	// PutObject的场合op为1；o.ReplicationStatus为0值；如果请求头中有X-Minio-Source-Replication-Request参数为true
+	// PutObject的场合op为1；o.ReplicationStatus为0值；如果请求头中有X-Minio-Source-Replication-Request参数replicationRequest为true
 	return mustReplicateOptions{
 		meta:               meta,
 		status:             o.ReplicationStatus,
