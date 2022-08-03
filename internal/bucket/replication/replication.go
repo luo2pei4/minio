@@ -191,7 +191,9 @@ func (c Config) GetDestination() Destination {
 }
 
 // Replicate returns true if the object should be replicated.
+// 返回对象是否需要进行复制操作
 func (c Config) Replicate(obj ObjectOpts) bool {
+	// 如果SSEC，返回false
 	if obj.SSEC {
 		return false
 	}
@@ -245,13 +247,13 @@ func (c Config) HasActiveRules(prefix string, recursive bool) bool {
 }
 
 // FilterTargetArns returns a slice of distinct target arns in the config
-// 返回排序去重后的复制策略切片
+// 返回排序去重后的arn切片
 func (c Config) FilterTargetArns(obj ObjectOpts) []string {
 	var arns []string
 
 	tgtsMap := make(map[string]struct{})
 
-	// 根据对象名称（向前匹配）获取复制策略的切片，该切片根据复制策略优先级进行了排序的
+	// 根据对象名称（向前匹配）获取复制策略的切片，该切片根据复制策略优先级进行了排序
 	rules := c.FilterActionableRules(obj)
 
 	// 过滤掉具有相同Destination.ARN的数据
@@ -267,7 +269,7 @@ func (c Config) FilterTargetArns(obj ObjectOpts) []string {
 			tgtsMap[rule.Destination.ARN] = struct{}{}
 		}
 	}
-	// 返回排序去重后的复制策略切片
+	// 返回排序去重后的arn切片
 	for k := range tgtsMap {
 		arns = append(arns, k)
 	}

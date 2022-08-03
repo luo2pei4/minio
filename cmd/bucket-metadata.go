@@ -97,6 +97,7 @@ type BucketMetadata struct {
 }
 
 // newBucketMetadata creates BucketMetadata with the supplied name and Created to Now.
+// 创建一个新的桶元数据对象
 func newBucketMetadata(name string) BucketMetadata {
 	return BucketMetadata{
 		Name:    name,
@@ -149,7 +150,9 @@ func (b *BucketMetadata) Load(ctx context.Context, api ObjectLayer, name string)
 }
 
 // loadBucketMetadata loads and migrates to bucket metadata.
+// 从磁盘加载桶的元数据二进制文件(metadata.bin)
 func loadBucketMetadata(ctx context.Context, objectAPI ObjectLayer, bucket string) (BucketMetadata, error) {
+	// 创建桶元数据对象
 	b := newBucketMetadata(bucket)
 	// 加载桶的元数据二进制文件(metadata.bin)
 	err := b.Load(ctx, objectAPI, b.Name)

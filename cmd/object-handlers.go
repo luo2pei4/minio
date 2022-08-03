@@ -1784,6 +1784,7 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// 获取对象的复制策略
 	if dsc := mustReplicate(ctx, bucket, object, getMustReplicateOptions(ObjectInfo{
 		UserDefined: metadata,
 	}, replication.ObjectReplicationType, opts)); dsc.ReplicateAny() {
@@ -1791,6 +1792,7 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 		metadata[ReservedMetadataPrefixLower+ReplicationStatus] = dsc.PendingStatus()
 	}
 	var objectEncryptionKey crypto.ObjectKey
+	// 集群模式下erasureServerPools结构体的IsEncryptionSupported方法直接返回true
 	if objectAPI.IsEncryptionSupported() {
 		if _, ok := crypto.IsRequested(r.Header); ok && !HasSuffix(object, SlashSeparator) { // handle SSE requests
 			if crypto.SSECopy.IsRequested(r.Header) {

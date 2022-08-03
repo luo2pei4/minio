@@ -339,7 +339,9 @@ func (sys *BucketMetadataSys) GetQuotaConfig(ctx context.Context, bucket string)
 
 // GetReplicationConfig returns configured bucket replication config
 // The returned object may not be modified.
+// 获取桶的复制配置
 func (sys *BucketMetadataSys) GetReplicationConfig(ctx context.Context, bucket string) (*replication.Config, error) {
+	// 获取桶的元数据
 	meta, err := sys.GetConfig(ctx, bucket)
 	if err != nil {
 		if errors.Is(err, errConfigNotFound) {
@@ -348,9 +350,11 @@ func (sys *BucketMetadataSys) GetReplicationConfig(ctx context.Context, bucket s
 		return nil, err
 	}
 
+	// 如果桶的元数据中没有复制相关配置，返回桶的复制配置未找到的错误
 	if meta.replicationConfig == nil {
 		return nil, BucketReplicationConfigNotFound{Bucket: bucket}
 	}
+	// 返回桶的复制配置
 	return meta.replicationConfig, nil
 }
 
@@ -393,24 +397,31 @@ func (sys *BucketMetadataSys) GetConfig(ctx context.Context, bucket string) (Buc
 		return newBucketMetadata(bucket), NotImplemented{}
 	}
 
+	// 判断桶名称是否是.minio.sys，如果是，返货无效的参数错误。
 	if bucket == minioMetaBucket {
 		return newBucketMetadata(bucket), errInvalidArgument
 	}
 
+	// 从globalBucketMetadataSys中获取指定桶的元数据
 	sys.RLock()
 	meta, ok := sys.metadataMap[bucket]
 	sys.RUnlock()
+	// 如果指定桶的元数据信息存在的话直接返回元数据
 	if ok {
 		return meta, nil
 	}
+	// 如果桶的元数据信息不存在，则从磁盘加载。
 	meta, err := loadBucketMetadata(ctx, objAPI, bucket)
+	// 加载失败的场合，返回错误
 	if err != nil {
 		return meta, err
 	}
+	// 加载成功的场合，将元数据保存到globalBucketMetadataSys中
 	sys.Lock()
 	sys.metadataMap[bucket] = meta
 	sys.Unlock()
 
+	// 最后再返回桶的元数据
 	return meta, nil
 }
 

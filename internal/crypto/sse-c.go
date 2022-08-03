@@ -64,6 +64,7 @@ func (ssec) IsRequested(h http.Header) bool {
 // IsEncrypted returns true if the metadata contains an SSE-C
 // entry inidicating that the object has been encrypted using
 // SSE-C.
+// 传入的metadata map中含有key为X-Minio-Internal-Server-Side-Encryption-Sealed-Key的项，返回true
 func (ssec) IsEncrypted(metadata map[string]string) bool {
 	if _, ok := metadata[MetaSealedKeySSEC]; ok {
 		return true

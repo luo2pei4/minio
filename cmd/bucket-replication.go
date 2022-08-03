@@ -68,6 +68,7 @@ const (
 )
 
 // gets replication config associated to a given bucket name.
+// 获取桶的复制配置
 func getReplicationConfig(ctx context.Context, bucketName string) (rc *replication.Config, err error) {
 	if globalIsGateway {
 		objAPI := newObjectLayerFn()
@@ -181,41 +182,54 @@ func mustReplicate(ctx context.Context, bucket, object string, mopts mustReplica
 		return
 	}
 
+	// 从mustReplicateOptions的meta属性(map[string]string)中获取key为X-Amz-Replication-Status的值
 	replStatus := mopts.ReplicationStatus()
+	// 如果复制状态为REPLICA，并且复制类型不是元数据复制，直接返回。
 	if replStatus == replication.Replica && !mopts.isMetadataReplication() {
 		return
 	}
 
+	// 判断当前请求是否是复制，如果是，直接返回。
 	if mopts.replicationRequest { // incoming replication request on target cluster
 		return
 	}
+	// 非网关场景下，从globalBucketMetadataSys变量中获取桶的复制策略配置
 	cfg, err := getReplicationConfig(ctx, bucket)
 	if err != nil {
 		return
 	}
 	opts := replication.ObjectOpts{
-		Name:           object,
-		SSEC:           crypto.SSEC.IsEncrypted(mopts.meta),
-		Replica:        replStatus == replication.Replica,
-		ExistingObject: mopts.isExistingObjectReplication(),
+		Name:           object,                              // 对象名称
+		SSEC:           crypto.SSEC.IsEncrypted(mopts.meta), // 是否是SSEC加密
+		Replica:        replStatus == replication.Replica,   // 是否是REPLICA
+		ExistingObject: mopts.isExistingObjectReplication(), // 是否是对已存在的对象进行复制
 	}
+	// 判断是否有X-Amz-Tagging项目
 	tagStr, ok := mopts.meta[xhttp.AmzObjectTagging]
 	if ok {
 		opts.UserTags = tagStr
 	}
+	// 从桶的复制配置中过滤出传入参数匹配的arn切片
 	tgtArns := cfg.FilterTargetArns(opts)
+	// 遍历arn切片
 	for _, tgtArn := range tgtArns {
+		// 从globalBucketTargetSys的arnRemotesMap属性中返回对应的远端目标客户端
 		tgt := globalBucketTargetSys.GetRemoteTargetClient(ctx, tgtArn)
 		// the target online status should not be used here while deciding
 		// whether to replicate as the target could be temporarily down
 		opts.TargetArn = tgtArn
+
+		// 获取对象是否需要进行复制操作
 		replicate := cfg.Replicate(opts)
+
+		// 获取对象是否需要进行同步复制操作
 		var synchronous bool
 		if tgt != nil {
 			synchronous = tgt.replicateSync
 		}
 		dsc.Set(newReplicateTargetDecision(tgtArn, replicate, synchronous))
 	}
+	// 一个对象可能适用于多个复制策略，所以返回对象的复制决策的切片
 	return dsc
 }
 
