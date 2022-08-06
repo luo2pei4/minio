@@ -45,6 +45,10 @@ type ssecCopy struct{}
 // IsRequested returns true if the HTTP headers contains
 // at least one SSE-C copy header. Regular SSE-C headers
 // are ignored.
+// 请求头中包含以下任一参数则返回true，否则返回false
+//  1. X-Amz-Copy-Source-Server-Side-Encryption-Customer-Algorithm
+//  2. X-Amz-Copy-Source-Server-Side-Encryption-Customer-Key
+//  3. X-Amz-Copy-Source-Server-Side-Encryption-Customer-Key-Md5
 func (ssecCopy) IsRequested(h http.Header) bool {
 	if _, ok := h[xhttp.AmzServerSideEncryptionCopyCustomerAlgorithm]; ok {
 		return true

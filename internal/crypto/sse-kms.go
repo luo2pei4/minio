@@ -64,12 +64,20 @@ func (ssekms) IsRequested(h http.Header) bool {
 
 // ParseHTTP parses the SSE-KMS headers and returns the SSE-KMS key ID
 // and the KMS context on success.
+// 解析请求头，返回keyID，context和错误信息。
+//  1. keyID是请求头中X-Amz-Server-Side-Encryption-Aws-Kms-Key-Id参数的值
+//  2. context是一个map，是通过解码X-Amz-Server-Side-Encryption-Context参数的值得到。
 func (ssekms) ParseHTTP(h http.Header) (string, kms.Context, error) {
+	// 获取请求头中X-Amz-Server-Side-Encryption参数的值（算法名称）
 	algorithm := h.Get(xhttp.AmzServerSideEncryption)
+	// 如果算法名称不等于aws:kms，返回无效的加密方法错误
 	if algorithm != xhttp.AmzEncryptionKMS {
 		return "", nil, ErrInvalidEncryptionMethod
 	}
 
+	// 获取请求头中X-Amz-Server-Side-Encryption-Context参数的值。
+	// 如果该参数的值存在，则对值进行解码，解码后对数据格式应该为json格式
+	// 将解码后对值转为map形式保存
 	var ctx kms.Context
 	if context, ok := h[xhttp.AmzServerSideEncryptionKmsContext]; ok {
 		b, err := base64.StdEncoding.DecodeString(context[0])
@@ -82,6 +90,7 @@ func (ssekms) ParseHTTP(h http.Header) (string, kms.Context, error) {
 			return "", nil, err
 		}
 	}
+	// 返回请求头中X-Amz-Server-Side-Encryption-Aws-Kms-Key-Id参数的值，以及解码后的context
 	return h.Get(xhttp.AmzServerSideEncryptionKmsID), ctx, nil
 }
 

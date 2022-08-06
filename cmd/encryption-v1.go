@@ -127,11 +127,15 @@ func ParseSSECustomerRequest(r *http.Request) (key []byte, err error) {
 
 // ParseSSECustomerHeader parses the SSE-C header fields and returns
 // the client provided key on success.
+// 判断请求头中同时含有S3加密参数和SSEC加密参数，返回不相融的加密方法错误。
+// 解析请求头，返回SSE-C客户端key（加密计算后的32位字节数组）
 func ParseSSECustomerHeader(header http.Header) (key []byte, err error) {
+	// 如果请求头中同时含有S3加密参数和SSEC加密参数，返回不相融的加密方法错误
 	if crypto.S3.IsRequested(header) && crypto.SSEC.IsRequested(header) {
 		return key, crypto.ErrIncompatibleEncryptionMethod
 	}
 
+	// 解析请求头，返回SSE-C客户端key（加密计算后的32位字节数组）
 	k, err := crypto.SSEC.ParseHTTP(header)
 	return k[:], err
 }
@@ -281,6 +285,7 @@ func newEncryptMetadata(kind crypto.Type, keyID string, key []byte, bucket, obje
 	}
 }
 
+// 创建新的加密reader，实际就是把传入的reader又做了一层封装，加入了加密处理相关信息。
 func newEncryptReader(content io.Reader, kind crypto.Type, keyID string, key []byte, bucket, object string, metadata map[string]string, ctx kms.Context) (io.Reader, crypto.ObjectKey, error) {
 	objectEncryptionKey, err := newEncryptMetadata(kind, keyID, key, bucket, object, metadata, ctx)
 	if err != nil {
@@ -325,6 +330,7 @@ func setEncryptionMetadata(r *http.Request, bucket, object string, metadata map[
 // with the client provided key. It also marks the object as client-side-encrypted
 // and sets the correct headers.
 func EncryptRequest(content io.Reader, r *http.Request, bucket, object string, metadata map[string]string) (io.Reader, crypto.ObjectKey, error) {
+	// 如果请求头中Content-Length的值大于1048576（1MB），用传入的reader创建一个带有1MB缓存的心reader
 	if r.ContentLength > encryptBufferThreshold {
 		// The encryption reads in blocks of 64KB.
 		// We add a buffer on bigger files to reduce the number of syscalls upstream.
@@ -337,19 +343,25 @@ func EncryptRequest(content io.Reader, r *http.Request, bucket, object string, m
 		ctx   kms.Context
 		err   error
 	)
+	// 解析请求头，获取加密类型
 	kind, _ := crypto.IsRequested(r.Header)
+	// 如果加密类型为SSEC
 	if kind == crypto.SSEC {
+		// 解析请求头，计算client key
 		key, err = ParseSSECustomerRequest(r)
 		if err != nil {
 			return nil, crypto.ObjectKey{}, err
 		}
 	}
+	// 如果加密类型是S3KMS
 	if kind == crypto.S3KMS {
+		// 解析请求头获取keyID和context
 		keyID, ctx, err = crypto.S3KMS.ParseHTTP(r.Header)
 		if err != nil {
 			return nil, crypto.ObjectKey{}, err
 		}
 	}
+	// 创建一个加密reader
 	return newEncryptReader(content, kind, keyID, key, bucket, object, metadata, ctx)
 }
 

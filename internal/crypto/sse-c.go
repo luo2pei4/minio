@@ -74,9 +74,9 @@ func (ssec) IsEncrypted(metadata map[string]string) bool {
 
 // ParseHTTP parses the SSE-C headers and returns the SSE-C client key
 // on success. SSE-C copy headers are ignored.
-// 如果请求头中X-Amz-Server-Side-Encryption-Customer-Algorithm参数的值不为AES256，返回错误
-// 如果请求头中X-Amz-Server-Side-Encryption-Customer-Key参数值为空，返回错误
-// 如果请求头中X-Amz-Server-Side-Encryption-Customer-Key-Md5参数的值为空，返回错误
+//  1. 如果请求头中X-Amz-Server-Side-Encryption-Customer-Algorithm参数的值不为AES256，返回错误
+//  2. 如果请求头中X-Amz-Server-Side-Encryption-Customer-Key参数值为空，返回错误
+//  3. 如果请求头中X-Amz-Server-Side-Encryption-Customer-Key-Md5参数的值为空，返回错误
 func (ssec) ParseHTTP(h http.Header) (key [32]byte, err error) {
 	if h.Get(xhttp.AmzServerSideEncryptionCustomerAlgorithm) != xhttp.AmzEncryptionAES {
 		return key, ErrInvalidCustomerAlgorithm

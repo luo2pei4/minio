@@ -1794,12 +1794,15 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 	var objectEncryptionKey crypto.ObjectKey
 	// 集群模式下erasureServerPools结构体的IsEncryptionSupported方法直接返回true
 	if objectAPI.IsEncryptionSupported() {
+		// 请求中带有SSE相关参数并且对象名称不以左斜杠开头
 		if _, ok := crypto.IsRequested(r.Header); ok && !HasSuffix(object, SlashSeparator) { // handle SSE requests
+			// 如果请求头中包含sse-copy相关参数，返回无效的加密参数错误
 			if crypto.SSECopy.IsRequested(r.Header) {
 				writeErrorResponse(ctx, w, toAPIError(ctx, errInvalidEncryptionParameters), r.URL)
 				return
 			}
 
+			// 创建加密reader
 			reader, objectEncryptionKey, err = EncryptRequest(hashReader, r, bucket, object, metadata)
 			if err != nil {
 				writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
@@ -1807,8 +1810,10 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 			}
 
 			wantSize := int64(-1)
+			// size是请求头中Content-Length的值
 			if size >= 0 {
 				info := ObjectInfo{Size: size}
+				// 加密文件大小
 				wantSize = info.EncryptedSize()
 			}
 
@@ -1827,6 +1832,7 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// Ensure that metadata does not contain sensitive information
+	// 删除metadata中敏感的参数，主要是和加密相关的参数。
 	crypto.RemoveSensitiveEntries(metadata)
 
 	os := newObjSweeper(bucket, object).WithVersioning(opts.Versioned, opts.VersionSuspended)
