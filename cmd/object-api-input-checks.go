@@ -177,6 +177,8 @@ func checkObjectArgs(ctx context.Context, bucket, object string, obj ObjectLayer
 }
 
 // Checks for PutObject arguments validity, also validates if bucket exists.
+// 检查上传对象的参数，主要验证桶是否存在，对象名称是否有无效的字符串。
+// 如果检查失败，返回错误信息，检查成功的场合返回nil
 func checkPutObjectArgs(ctx context.Context, bucket, object string, obj getBucketInfoI) error {
 	// Verify if bucket exists before validating object name.
 	// This is done on purpose since the order of errors is
@@ -187,9 +189,11 @@ func checkPutObjectArgs(ctx context.Context, bucket, object string, obj getBucke
 		return err
 	}
 
+	// 检查对象名称的长度是否超过1024个字符，检查对象名称是否包含前缀“/”
 	if err := checkObjectNameForLengthAndSlash(bucket, object); err != nil {
 		return err
 	}
+	// 如果对象名称是否是空字符串，或者对象名中包含无效的前缀，则返回对象名无效的错误
 	if len(object) == 0 ||
 		!IsValidObjectPrefix(object) {
 		return ObjectNameInvalid{
@@ -205,7 +209,9 @@ type getBucketInfoI interface {
 }
 
 // Checks whether bucket exists and returns appropriate error if not.
+// 尝试获取桶的信息，如果可以正常获取则返回nil，如果获取桶信息发生错误，则返回错误
 func checkBucketExist(ctx context.Context, bucket string, obj getBucketInfoI) error {
+	// 集群和纠删模式下，调用的是erasureServerPool结构体的GetBucketInfo方法
 	_, err := obj.GetBucketInfo(ctx, bucket)
 	if err != nil {
 		return err

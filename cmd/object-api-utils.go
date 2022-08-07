@@ -74,6 +74,7 @@ const (
 
 // isMinioBucket returns true if given bucket is a MinIO internal
 // bucket and false otherwise.
+// 判断桶名是否含有前缀.minio.sys
 func isMinioMetaBucketName(bucket string) bool {
 	return strings.HasPrefix(bucket, minioMetaBucket)
 }
@@ -974,6 +975,7 @@ func getDiskInfos(ctx context.Context, disks []StorageAPI) []*DiskInfo {
 }
 
 // hasSpaceFor returns whether the disks in `di` have space for and object of a given size.
+// 检查当前set是否有足够的存储空间保存传入对象
 func hasSpaceFor(di []*DiskInfo, size int64) bool {
 	// We multiply the size by 2 to account for erasure coding.
 	size *= 2
@@ -985,40 +987,55 @@ func hasSpaceFor(di []*DiskInfo, size int64) bool {
 	var available uint64
 	var total uint64
 	var nDisks int
+	// 遍历每个磁盘的信息
 	for _, disk := range di {
+		// 1. 磁盘信息为空
+		// 2. 磁盘总大小为0
+		// 3. 磁盘的剩余inode数小于1000，并且磁盘的已用inode数大于0
+		// 上述三种情况满足任一一种，则不做处理，继续做处理下一个磁盘信息
 		if disk == nil || disk.Total == 0 || (disk.FreeInodes < diskMinInodes && disk.UsedInodes > 0) {
 			// Disk offline, no inodes or something else is wrong.
 			continue
 		}
+		// 可用磁盘计数加1
 		nDisks++
+		// 累加可用磁盘的总容量
 		total += disk.Total
+		// 累加可用磁盘的磁盘可用容量，单个磁盘的可用容量为磁盘总容量减磁盘已用容量
 		available += disk.Total - disk.Used
 	}
 
+	// 如果磁盘计数为0，返回false，表示无可用空间
 	if nDisks == 0 {
 		return false
 	}
 
 	// Check we have enough on each disk, ignoring diskFillFraction.
+	// 获取对象在每个可用磁盘所需的空间大小
 	perDisk := size / int64(nDisks)
+	// 再次遍历所有磁盘信息
 	for _, disk := range di {
 		if disk == nil || disk.Total == 0 || (disk.FreeInodes < diskMinInodes && disk.UsedInodes > 0) {
 			continue
 		}
+		// 如果磁盘的剩余容量小于或等于对象在每个可用磁盘所需的空间大小，返回false
 		if int64(disk.Free) <= perDisk {
 			return false
 		}
 	}
 
 	// Make sure we can fit "size" on to the disk without getting above the diskFillFraction
+	// 如果总可用容量小于对象大小，返回false
 	if available < uint64(size) {
 		return false
 	}
 
 	// How much will be left after adding the file.
+	// 可用磁盘的总可用容量减去对象大小
 	available -= uint64(size)
 
 	// wantLeft is how much space there at least must be left.
+	// 如果可用磁盘的可用总容量加上对象大小后，超过总容量的99%，返回false
 	wantLeft := uint64(float64(total) * (1.0 - diskFillFraction))
 	return available > wantLeft
 }

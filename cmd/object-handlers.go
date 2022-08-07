@@ -1845,6 +1845,7 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// Create the object..
+	// 上传对象。集群和纠删模式下，调用的是erasureServerPool结构体的PutObject方法
 	objInfo, err := putObject(ctx, bucket, object, pReader, opts)
 	if err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)

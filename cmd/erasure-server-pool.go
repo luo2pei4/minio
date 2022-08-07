@@ -667,6 +667,7 @@ func (z *erasureServerPools) MakeBucketWithLocation(ctx context.Context, bucket 
 	defer lk.Unlock(lkctx.Cancel)
 
 	// Create buckets in parallel across all sets.
+	// 在所有pool的所有set中创建桶，但是上传对象的时候会根据hash值均匀的分布在不同的set上
 	for index := range z.serverPools {
 		index := index
 		g.Go(func() error {
@@ -861,16 +862,24 @@ func (z *erasureServerPools) GetObjectInfo(ctx context.Context, bucket, object s
 // PutObject - writes an object to least used erasure pool.
 func (z *erasureServerPools) PutObject(ctx context.Context, bucket string, object string, data *PutObjReader, opts ObjectOptions) (ObjectInfo, error) {
 	// Validate put object input args.
+	// 验证上传对象的传入参数
 	if err := checkPutObjectArgs(ctx, bucket, object, z); err != nil {
 		return ObjectInfo{}, err
 	}
 
+	// 替换对象名的后缀
 	object = encodeDirObject(object)
 
 	if z.SinglePool() {
+		// 1. 判断对象名是否含有前缀.minio.sys
+		// 2. 判断是否有足够存储空间
+		//   2.1 通过对象名计算一个hash值（getHashSet），通过这个hash值选取一个set，并获取这个set所有操作接口（getDisks）
+		//   2.2 获取这个set中所有磁盘的信息（getDiskInfos）
+		//   2.3 判断set是否有足够的空间保存对象（hasSpaceFor）
 		if !isMinioMetaBucketName(bucket) && !hasSpaceFor(getDiskInfos(ctx, z.serverPools[0].getHashedSet(object).getDisks()), data.Size()) {
 			return ObjectInfo{}, toObjectErr(errDiskFull)
 		}
+
 		return z.serverPools[0].PutObject(ctx, bucket, object, data, opts)
 	}
 	if !opts.NoLock {
@@ -1438,18 +1447,23 @@ func (z *erasureServerPools) CompleteMultipartUpload(ctx context.Context, bucket
 }
 
 // GetBucketInfo - returns bucket info from one of the erasure coded serverPools.
+// 获取桶的信息，包括桶名和创建时间
 func (z *erasureServerPools) GetBucketInfo(ctx context.Context, bucket string) (bucketInfo BucketInfo, err error) {
+	// 单pool的场合
 	if z.SinglePool() {
+		// 调用erasureSets的GetBucketInfo方法获取桶信息
 		bucketInfo, err = z.serverPools[0].GetBucketInfo(ctx, bucket)
 		if err != nil {
 			return bucketInfo, err
 		}
+		// 从globalBucketMetadataSys中获取桶的元数据，并将元数据中的桶创建时间保存到上面获取到桶信息中
 		meta, err := globalBucketMetadataSys.Get(bucket)
 		if err == nil {
 			bucketInfo.Created = meta.Created
 		}
 		return bucketInfo, nil
 	}
+	// 多pool的场合，处理逻辑和单pool一致。
 	for _, pool := range z.serverPools {
 		bucketInfo, err = pool.GetBucketInfo(ctx, bucket)
 		if err != nil {

@@ -949,6 +949,7 @@ func (t *timedValue) update(v interface{}) {
 
 // On MinIO a directory object is stored as a regular object with "__XLDIR__" suffix.
 // For ex. "prefix/" is stored as "prefix__XLDIR__"
+// 如果对象名称包含“/”后缀，将“/”替换为"__XLDIR__"
 func encodeDirObject(object string) string {
 	if HasSuffix(object, slashSeparator) {
 		return strings.TrimSuffix(object, slashSeparator) + globalDirSuffix

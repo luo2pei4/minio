@@ -173,7 +173,9 @@ func (sys *BucketMetadataSys) Update(ctx context.Context, bucket string, configF
 // - ListBuckets
 // For all other bucket specific metadata, use the relevant
 // calls implemented specifically for each of those features.
+// 从BucketMetadataSys对象（globalBucketMetadataSys）中获取制定名称的桶的元数据
 func (sys *BucketMetadataSys) Get(bucket string) (BucketMetadata, error) {
+	// 如果是网关模式，或者桶名为.minio.sys，返回配置未找到的错误
 	if globalIsGateway || bucket == minioMetaBucket {
 		return newBucketMetadata(bucket), errConfigNotFound
 	}
@@ -181,6 +183,7 @@ func (sys *BucketMetadataSys) Get(bucket string) (BucketMetadata, error) {
 	sys.RLock()
 	defer sys.RUnlock()
 
+	// 判断桶是否存在，如果不存在，创建一个新的桶元数据对象，并和配置未找到错误一起返回
 	meta, ok := sys.metadataMap[bucket]
 	if !ok {
 		return newBucketMetadata(bucket), errConfigNotFound
