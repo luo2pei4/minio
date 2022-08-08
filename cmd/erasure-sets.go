@@ -944,9 +944,13 @@ func (s *erasureSets) GetObjectNInfo(ctx context.Context, bucket, object string,
 }
 
 // PutObject - writes an object to hashedSet based on the object name.
+// 上传对象
 func (s *erasureSets) PutObject(ctx context.Context, bucket string, object string, data *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, err error) {
+	// 通过对象名计算hash值，用该hash值选取一个set。
 	set := s.getHashedSet(object)
+	// 设置操作日志
 	auditObjectErasureSet(ctx, object, set)
+	// 调用erasureObjects的PutObject方法
 	return set.PutObject(ctx, bucket, object, data, opts)
 }
 
