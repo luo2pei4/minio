@@ -944,13 +944,17 @@ func (s *erasureSets) GetObjectNInfo(ctx context.Context, bucket, object string,
 }
 
 // PutObject - writes an object to hashedSet based on the object name.
-// 上传对象
+// 向单个set上传对象
 func (s *erasureSets) PutObject(ctx context.Context, bucket string, object string, data *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, err error) {
 	// 通过对象名计算hash值，用该hash值选取一个set。
 	set := s.getHashedSet(object)
 	// 设置操作日志
 	auditObjectErasureSet(ctx, object, set)
-	// 调用erasureObjects的PutObject方法
+	// 调用erasureObjects的PutObject方法，向这个set中所有的磁盘写入对象分片
+	// erasureObjects结构体中有一个getDisks属性（函数类型），可以获取当前set所有磁盘的操作接口。该属性由erasureSets的GetDisks方法实现
+	// set的操作接口在本文件的newErasureSets函数中赋值
+	// newErasureSets在启动时由newErasureServerPools函数调用
+	// newErasureServerPools函数在启动时由newObjectLayer函数调用
 	return set.PutObject(ctx, bucket, object, data, opts)
 }
 

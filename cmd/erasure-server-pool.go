@@ -880,6 +880,7 @@ func (z *erasureServerPools) PutObject(ctx context.Context, bucket string, objec
 			return ObjectInfo{}, toObjectErr(errDiskFull)
 		}
 
+		// 向单个set上传对象
 		return z.serverPools[0].PutObject(ctx, bucket, object, data, opts)
 	}
 	if !opts.NoLock {

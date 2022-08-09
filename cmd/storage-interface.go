@@ -24,6 +24,10 @@ import (
 )
 
 // StorageAPI interface.
+// 磁盘的操作接口。下面三个结构体实现了该接口。
+//  1. storageRESTClient		用于其他节点的磁盘操作
+//  2. xlStorageDiskIDCheck		用于检测磁盘的变更
+//  3. xlStorage				用于对磁盘进行操作
 type StorageAPI interface {
 	// Stringified version of disk.
 	String() string

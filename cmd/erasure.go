@@ -50,6 +50,7 @@ type erasureObjects struct {
 	poolIndex int
 
 	// getDisks returns list of storageAPIs.
+	// 获取所有磁盘的操作接口，StorageAPI接口中定义了对磁盘的操作
 	getDisks func() []StorageAPI
 
 	// getLockers returns list of remote and local lockers.

@@ -241,6 +241,13 @@ const (
 )
 
 // newFileInfo - initializes new FileInfo, allocates a fresh erasure info.
+// 实例化FileInfo结构体，并初始化结构体的Erasure属性
+// Erasure属性是ErasureInfo结构体类型，主要设置以下内容：
+//  1. Algorithm 纠删算法
+//  2. DataBlocks 数据盘数量
+//  3. ParityBlocks 冗余盘数量
+//  4. BlockSize 文件分块大小，默认大小为1MB
+//  5. Distribution 数据盘和冗余盘的分布（该属性为int切片，切片中的值实际代表磁盘在set中的index）
 func newFileInfo(object string, dataBlocks, parityBlocks int) (fi FileInfo) {
 	fi.Erasure = ErasureInfo{
 		Algorithm:    erasureAlgorithm,

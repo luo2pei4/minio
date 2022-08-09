@@ -737,20 +737,23 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 		opts.UserDefined = make(map[string]string)
 	}
 
+	// erasureObjects结构体的getDisks属性由erasureSets的GetDisks方法实现
 	storageDisks := er.getDisks()
 
-	// 校验盘数量初始化为总磁盘数的一半
+	// 校验盘数量初始化为set总磁盘数的一半
 	parityDrives := len(storageDisks) / 2
+	// 没有设置最大冗余（N/2）的场合
 	if !opts.MaxParity {
 		// Get parity and data drive count based on storage class metadata
 		// 根据用户设置获取基偶校验盘数量，默认为2块盘
+		// 来自请求头中的x-amz-storage-class参数值（REDUCED_REDUNDANCY / STANDARD）
 		parityDrives = globalStorageClass.GetParityForSC(opts.UserDefined[xhttp.AmzStorageClass])
 		if parityDrives <= 0 {
 			parityDrives = er.defaultParityCount
 		}
 
 		// If we have offline disks upgrade the number of erasure codes for this object.
-		// 如果有离线盘，则更新该对象的纠删码盘数量
+		// 如果有离线盘，则更新该对象的校验盘数量
 		// parityOrig为临时保存初期设置中的校验盘数量
 		parityOrig := parityDrives
 
@@ -761,9 +764,9 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 		atomicParityDrives.Store(int64(parityDrives))
 
 		var wg sync.WaitGroup
-		// 遍历磁盘对象切片
+		// 遍历磁盘操作接口切片
 		for _, disk := range storageDisks {
-			// 磁盘数据为空的情况，校验盘数量加1
+			// 磁盘信息为空的情况，校验盘数量加1
 			if disk == nil {
 				atomicParityDrives.Inc()
 				continue
@@ -776,7 +779,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 			wg.Add(1)
 			go func(disk StorageAPI) {
 				defer wg.Done()
-				// 通过数据盘对象的Disknfo方法获取数据盘的信息
+				// 通过磁盘操作接口的Disknfo方法获取磁盘的信息
 				// 数据获取失败，或者获取的数据中没有ID的情况，表示盘不存在或不可用
 				// 在上述情况下校验盘数量加1
 				di, err := disk.DiskInfo(ctx)
@@ -788,8 +791,9 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 		wg.Wait()
 
 		// 从原子变量中读取校验盘数量
+		// 此处的parityDrives实际上是原始校验盘数量加不可用磁盘数量
 		parityDrives = int(atomicParityDrives.Load())
-		// 如果校验盘数量大于等于磁盘总数的一半，则强制将校验盘数量设置为磁盘总数的一半
+		// 如果parityDrives大于等于set总磁盘数的一半，则强制将校验盘数量设置为磁盘总数的一半
 		if parityDrives >= len(storageDisks)/2 {
 			parityDrives = len(storageDisks) / 2
 		}
@@ -818,7 +822,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	}
 
 	// Initialize parts metadata
-	// 创建对象分片的元数据切片
+	// 创建对象part元数据切片
 	partsMetadata := make([]FileInfo, len(storageDisks))
 
 	// 创建FileInfo的实例
@@ -836,7 +840,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	tempObj := uniqueID
 
 	// Initialize erasure metadata.
-	// 初始化对象分片的元数据切片
+	// 初始化对象part元数据切片
 	for index := range partsMetadata {
 		partsMetadata[index] = fi
 	}
