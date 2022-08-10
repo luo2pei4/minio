@@ -87,6 +87,10 @@ func (e ErasureInfo) ShardSize() int64 {
 }
 
 // IsValid - tells if erasure info fields are valid.
+// 判断FileInfo实例是否有效，针对一下内容进行验证
+//  1. Index
+//  2. 数据盘和冗余盘数量
+//  3. Distribution长度
 func (fi FileInfo) IsValid() bool {
 	if fi.Deleted {
 		// Delete marker has no data, no need to check
@@ -95,9 +99,18 @@ func (fi FileInfo) IsValid() bool {
 	}
 	dataBlocks := fi.Erasure.DataBlocks
 	parityBlocks := fi.Erasure.ParityBlocks
+	// FileInfo实例的纠删信息中的Index是否正确，做以下判断：
+	//  1. 大于0
+	//  2. Index小于等于数据盘数量+冗余盘数量
+	//  3. 纠删信息中的Distribution的长度等于数据盘数量+冗余盘数量
 	correctIndexes := (fi.Erasure.Index > 0 &&
 		fi.Erasure.Index <= dataBlocks+parityBlocks &&
 		len(fi.Erasure.Distribution) == (dataBlocks+parityBlocks))
+	// 返回以下判断式并集
+	// 1. 数据盘数量大于等于冗余盘数量
+	// 2. 数据盘数量不为0
+	// 3. 冗余盘数量不为0
+	// 4. Index信息正确与否
 	return ((dataBlocks >= parityBlocks) &&
 		(dataBlocks != 0) && (parityBlocks != 0) &&
 		correctIndexes)

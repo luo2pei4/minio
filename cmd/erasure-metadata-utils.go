@@ -214,12 +214,15 @@ func shuffleDisksAndPartsMetadata(disks []StorageAPI, partsMetadata []FileInfo, 
 	shuffledPartsMetadata = make([]FileInfo, len(partsMetadata))
 	distribution := fi.Erasure.Distribution
 
+	// 通过传入的FileInfo实例判断是否是初次处理
 	init := fi.ModTime.IsZero()
 	// Shuffle slice xl metadata for expected distribution.
+	// 遍历传入的part元数据
 	for index := range partsMetadata {
 		if disks[index] == nil {
 			continue
 		}
+		// 如果不是初次处理，并且FileInfo实例验证失败的场合
 		if !init && !partsMetadata[index].IsValid() {
 			// Check for parts metadata validity for only
 			// fi.ModTime is not empty - ModTime is always set,

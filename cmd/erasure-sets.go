@@ -950,7 +950,7 @@ func (s *erasureSets) PutObject(ctx context.Context, bucket string, object strin
 	set := s.getHashedSet(object)
 	// 设置操作日志
 	auditObjectErasureSet(ctx, object, set)
-	// 调用erasureObjects的PutObject方法，向这个set中所有的磁盘写入对象分片
+	// 调用erasureObjects的PutObject方法，向这个set中所有的磁盘写入对象
 	// erasureObjects结构体中有一个getDisks属性（函数类型），可以获取当前set所有磁盘的操作接口。该属性由erasureSets的GetDisks方法实现
 	// set的操作接口在本文件的newErasureSets函数中赋值
 	// newErasureSets在启动时由newErasureServerPools函数调用
