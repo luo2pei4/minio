@@ -682,7 +682,7 @@ func initStorageDisksWithErrorsWithoutHealthCheck(endpoints Endpoints) ([]Storag
 // Errors are returned for each endpoint with matching index.
 func initStorageDisksWithErrors(endpoints Endpoints) ([]StorageAPI, []error) {
 	// Bootstrap disks.
-	// 根据单个set的endpoint切片长度创建一个StorageAPI的切片
+	// 根据单个pool中所有的磁盘的数量创建一个StorageAPI的切片
 	storageDisks := make([]StorageAPI, len(endpoints))
 	g := errgroup.WithNErrs(len(endpoints))
 	for index := range endpoints {

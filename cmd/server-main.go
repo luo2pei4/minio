@@ -173,6 +173,7 @@ func serverHandleCmdArgs(ctx *cli.Context) {
 	env.RegisterGlobalCAs(globalRootCAs)
 
 	// 获取Endpoints和安装类型（FS/纠删/集群）
+	// globalEndpoints实际是按pool分别保存每个pool中所有磁盘的url
 	globalEndpoints, setupType, err = createServerEndpoints(globalMinioAddr, serverCmdArgs(ctx)...)
 	logger.FatalIf(err, "Invalid command line arguments")
 

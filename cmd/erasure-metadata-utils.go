@@ -218,6 +218,9 @@ func shuffleDisksAndPartsMetadata(disks []StorageAPI, partsMetadata []FileInfo, 
 	init := fi.ModTime.IsZero()
 	// Shuffle slice xl metadata for expected distribution.
 	// 遍历传入的part元数据
+	// 因为distribution中的值是从1开始的，所以按distribution中的值为索引时需要减1
+	// 初期partsMetadata中的数据都是相同的，所以shuffledPartsMetadata装入数据其实没有什么变化。
+	// 主要还是按distribution中的值为索引重新装入StorageAPI的切片
 	for index := range partsMetadata {
 		if disks[index] == nil {
 			continue
