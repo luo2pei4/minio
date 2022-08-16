@@ -39,6 +39,7 @@ type Erasure struct {
 }
 
 // NewErasure creates a new ErasureStorage.
+// 创建Erasure结构体实例，设置数据盘数量，冗余盘数量，数据块大小和编码算法
 func NewErasure(ctx context.Context, dataBlocks, parityBlocks int, blockSize int64) (e Erasure, err error) {
 	// Check the parameters for sanity now.
 	if dataBlocks <= 0 || parityBlocks <= 0 {
@@ -124,6 +125,7 @@ func (e *Erasure) ShardSize() int64 {
 }
 
 // ShardFileSize - returns final erasure size from original size.
+// 根据对象大小和分片大小计算分片个数
 func (e *Erasure) ShardFileSize(totalLength int64) int64 {
 	if totalLength == 0 {
 		return 0

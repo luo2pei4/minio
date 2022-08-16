@@ -847,8 +847,10 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 
 	// Order disks according to erasure distribution
 	var onlineDisks []StorageAPI
+	// 以distribution中的值为索引重新生成StorageAPI的切片
 	onlineDisks, partsMetadata = shuffleDisksAndPartsMetadata(storageDisks, partsMetadata, fi)
 
+	// 创建Erasure结构体实例，设置数据盘数量，冗余盘数量，数据块大小和编码算法
 	erasure, err := NewErasure(ctx, fi.Erasure.DataBlocks, fi.Erasure.ParityBlocks, fi.Erasure.BlockSize)
 	if err != nil {
 		return ObjectInfo{}, toObjectErr(err, bucket, object)
@@ -891,6 +893,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 		}
 	}()
 
+	// 根据对象大小和分片大小计算分片个数
 	shardFileSize := erasure.ShardFileSize(data.Size())
 	writers := make([]io.Writer, len(onlineDisks))
 	var inlineBuffers []*bytes.Buffer
