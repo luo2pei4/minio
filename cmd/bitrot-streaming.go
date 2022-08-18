@@ -81,6 +81,7 @@ func (b *streamingBitrotWriter) Close() error {
 
 // newStreamingBitrotWriterBuffer returns streaming bitrot writer implementation.
 // The output is written to the supplied writer w.
+// 返回streamingBitrotWriter结构体指针
 func newStreamingBitrotWriterBuffer(w io.Writer, algo BitrotAlgorithm, shardSize int64) io.Writer {
 	return &streamingBitrotWriter{iow: ioutil.NopCloser(w), h: algo.New(), shardSize: shardSize, canClose: nil, closeWithErr: func(err error) error {
 		// Similar to CloseWithError on pipes we always return nil.

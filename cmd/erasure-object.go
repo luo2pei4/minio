@@ -893,10 +893,15 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 		}
 	}()
 
-	// 根据对象大小和分片大小计算分片个数
+	// 根据对象大小计算一个对象切分到一个数据盘上实际占用的空间大小（后简称单盘文件大小）
 	shardFileSize := erasure.ShardFileSize(data.Size())
+	// 创建io.writer切片用于写入数据
 	writers := make([]io.Writer, len(onlineDisks))
 	var inlineBuffers []*bytes.Buffer
+	// 单盘文件大小大于或等于0的场合
+	// 1、写入的桶不支持多版本，并且单盘文件大小128KB
+	// 2、单盘文件大小小于16KB
+	// 上述两种情况都将数据写入元数据文件中，所以创建一个bytes.Buffer的切片
 	if shardFileSize >= 0 {
 		if !opts.Versioned && shardFileSize < smallFileThreshold {
 			inlineBuffers = make([]*bytes.Buffer, len(onlineDisks))
@@ -918,24 +923,30 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 			continue
 		}
 
+		// 此处过滤实际不在线的磁盘
 		if !disk.IsOnline() {
 			continue
 		}
 
+		// 长度大于0的场合表示要写入对象的元数据文件中
 		if len(inlineBuffers) > 0 {
 			sz := shardFileSize
 			if sz < 0 {
 				sz = data.ActualSize()
 			}
 			inlineBuffers[i] = bytes.NewBuffer(make([]byte, 0, sz))
+			// 返回streamingBitrotWriter结构体指针
 			writers[i] = newStreamingBitrotWriterBuffer(inlineBuffers[i], DefaultBitrotAlgorithm, erasure.ShardSize())
 			continue
 		}
 
+		// 返回streamingBitrotWriter结构体指针
 		writers[i] = newBitrotWriter(disk, minioMetaTmpBucket, tempErasureObj, shardFileSize, DefaultBitrotAlgorithm, erasure.ShardSize())
 	}
 
+	// 将data转换成io.Reader类型
 	toEncode := io.Reader(data)
+	// 如果对象大小大于128MB
 	if data.Size() > bigFileThreshold {
 		// We use 2 buffers, so we always have a full buffer of input.
 		bufA := er.bp.Get()

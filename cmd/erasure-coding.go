@@ -120,12 +120,13 @@ func (e *Erasure) DecodeDataAndParityBlocks(ctx context.Context, data [][]byte) 
 }
 
 // ShardSize - returns actual shared size from erasure blockSize.
+// 计算了一个数据块（默认1MB）在一块数据盘上占用的大小
 func (e *Erasure) ShardSize() int64 {
 	return ceilFrac(e.blockSize, int64(e.dataBlocks))
 }
 
 // ShardFileSize - returns final erasure size from original size.
-// 根据对象大小和分片大小计算分片个数
+// 根据对象大小计算一个对象切分到一个数据盘上实际占用的空间大小
 func (e *Erasure) ShardFileSize(totalLength int64) int64 {
 	if totalLength == 0 {
 		return 0
@@ -133,9 +134,15 @@ func (e *Erasure) ShardFileSize(totalLength int64) int64 {
 	if totalLength == -1 {
 		return -1
 	}
+	// 获取数据块数量
 	numShards := totalLength / e.blockSize
+	// 获取最后一个数据块的实际大小
 	lastBlockSize := totalLength % e.blockSize
+	// 获取最后一个数据块在一块数据盘上占用大小
 	lastShardSize := ceilFrac(lastBlockSize, int64(e.dataBlocks))
+	// 返回一块数据盘上的占用大小
+	// e.ShardSize()计算了一个数据块（默认1MB）在一块数据盘上占用的大小
+	// 返回一个对象切分到一个数据盘上实际占用的空间大小
 	return numShards*e.ShardSize() + lastShardSize
 }
 
