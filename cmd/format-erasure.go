@@ -332,6 +332,7 @@ func loadFormatErasureAll(storageDisks []StorageAPI, heal bool) ([]*formatErasur
 				return err
 			}
 			formats[index] = format
+			// 初期化的时候heal为false
 			if !heal {
 				// If no healing required, make the disks valid and
 				// online.
@@ -411,6 +412,10 @@ func loadFormatErasure(disk StorageAPI) (format *formatErasureV3, err error) {
 }
 
 // Valid formatErasure basic versions.
+// 检查format.json文件中的以下内容
+//  1. 元数据版本是否是v1
+//  2. 元数据格式是否是xl
+//  3. 纠删版本是否是V3
 func checkFormatErasureValue(formatErasure *formatErasureV3, disk StorageAPI) error {
 	// Validate format version and format type.
 	if formatErasure.Version != formatMetaVersionV1 {
@@ -426,6 +431,10 @@ func checkFormatErasureValue(formatErasure *formatErasureV3, disk StorageAPI) er
 }
 
 // Check all format values.
+// 校验每块盘的format.json文件的内容，包括以下内容
+//  1. 文件中版本号和格式的校验（checkFormatErasureValue函数）
+//  2. 文件中set数量*单个set中的磁盘数量是否等于传入format.json文件切片的长度
+//  3. 环境变量MINIO_ERASURE_SET_DRIVE_COUNT设置的数量是否与单个set中磁盘数量一致
 func checkFormatErasureValues(formats []*formatErasureV3, disks []StorageAPI, setDriveCount int) error {
 	for i, formatErasure := range formats {
 		if formatErasure == nil {
@@ -434,6 +443,7 @@ func checkFormatErasureValues(formats []*formatErasureV3, disks []StorageAPI, se
 		if err := checkFormatErasureValue(formatErasure, disks[i]); err != nil {
 			return err
 		}
+		// format文件总数量 = sets数量 * sets[0]中的format文件数量
 		if len(formats) != len(formatErasure.Erasure.Sets)*len(formatErasure.Erasure.Sets[0]) {
 			return fmt.Errorf("%s disk is already being used in another erasure deployment. (Number of disks specified: %d but the number of disks found in the %s disk's format.json: %d)",
 				disks[i], len(formats), humanize.Ordinal(i+1), len(formatErasure.Erasure.Sets)*len(formatErasure.Erasure.Sets[0]))
@@ -441,6 +451,7 @@ func checkFormatErasureValues(formats []*formatErasureV3, disks []StorageAPI, se
 		// Only if custom erasure drive count is set, verify if the
 		// set_drive_count was manually set - we need to honor what is
 		// present on the drives.
+		// 环境变量MINIO_ERASURE_SET_DRIVE_COUNT设置的数量是否与单个set中磁盘数量一致
 		if globalCustomErasureDriveCount && len(formatErasure.Erasure.Sets[0]) != setDriveCount {
 			return fmt.Errorf("%s disk is already formatted with %d drives per erasure set. This cannot be changed to %d, please revert your MINIO_ERASURE_SET_DRIVE_COUNT setting", disks[i], len(formatErasure.Erasure.Sets[0]), setDriveCount)
 		}

@@ -1111,6 +1111,7 @@ func checkDiskFatalErrs(errs []error) error {
 // FIXME: This is an unusual function but serves its purpose for
 // now, need to revist the overall erroring structure here.
 // Do not like it :-(
+// 记录灾难性错误日志，exit代表是否退出整个程序
 func logFatalErrs(err error, endpoint Endpoint, exit bool) {
 	switch {
 	case errors.Is(err, errUnsupportedDisk):

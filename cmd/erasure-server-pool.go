@@ -87,6 +87,7 @@ func newErasureServerPools(ctx context.Context, endpointServerPools EndpointServ
 			return nil, fmt.Errorf("All current serverPools should have same parity ratio - expected %d, got %d", commonParityDrives, ecDrivesNoConfig(ep.DrivesPerSet))
 		}
 
+		// 针对单个serverpool的所有磁盘进行格式化
 		storageDisks[i], formats[i], err = waitForFormatErasure(local, ep.Endpoints, i+1,
 			ep.SetCount, ep.DrivesPerSet, deploymentID, distributionAlgo)
 		if err != nil {

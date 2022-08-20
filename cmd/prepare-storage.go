@@ -173,6 +173,9 @@ func isServerResolvable(endpoint Endpoint, timeout time.Duration) error {
 // connect to list of endpoints and load all Erasure disk formats, validate the formats are correct
 // and are in quorum, if no formats are found attempt to initialize all of them for the first
 // time. additionally make sure to close all the disks used in this attempt.
+// 根据配置解析出来endpoint列表，获取列表中每个磁盘的format.json文件并校验format文件是否正确以及磁盘是否在仲裁内。
+// 如果没有获取format.json文件，则在服务首次启动的时候尝试创建该文件。另外确保在尝试创建format.json文件时磁盘没有被使用。
+// 这个函数的注释写得好！很清晰！
 func connectLoadInitFormats(verboseLogging bool, firstDisk bool, endpoints Endpoints, poolCount, setCount, setDriveCount int, deploymentID, distributionAlgo string) (storageDisks []StorageAPI, format *formatErasureV3, err error) {
 	// Initialize all storage disks
 	storageDisks, errs := initStorageDisksWithErrors(endpoints)
@@ -216,6 +219,7 @@ func connectLoadInitFormats(verboseLogging bool, firstDisk bool, endpoints Endpo
 	// most part unless one of the formats is not consistent
 	// with expected Erasure format. For example if a user is
 	// trying to pool FS backend into an Erasure set.
+	// 检查所有format.json文件的内容
 	if err = checkFormatErasureValues(formatConfigs, storageDisks, setDriveCount); err != nil {
 		return nil, nil, err
 	}
@@ -298,6 +302,16 @@ func connectLoadInitFormats(verboseLogging bool, firstDisk bool, endpoints Endpo
 }
 
 // Format disks before initialization of object layer.
+// 在初始化objectlayer接口前格式化磁盘，
+// 实际就是将配置文件指定的磁盘的相关元数据生成format.json文件并保存到各自的磁盘上
+// 传入参数如下：
+//  1. firstDisk: 是否是第一块盘。这个主要选出整个集群中的一个节点，由这个节点负责整个集群中所有磁盘的初始化工作
+//  2. endpoints: endpoint的切片，包含单个pool的所有endpoint
+//  3. poolCount: pool的计数器，第一个pool为1，第二个为2，依次类推
+//  4. setCount: 单pool中的set数量
+//  5. setDriveCount: 每个set中的磁盘数量
+//  6. deploymentID: 发布ID，服务自己生成的UUID
+//  7. distributionAlgo: 分布式算法标识，系统启动初始化时该参数为空
 func waitForFormatErasure(firstDisk bool, endpoints Endpoints, poolCount, setCount, setDriveCount int, deploymentID, distributionAlgo string) ([]StorageAPI, *formatErasureV3, error) {
 	if len(endpoints) == 0 || setCount == 0 || setDriveCount == 0 {
 		return nil, nil, errInvalidArgument
