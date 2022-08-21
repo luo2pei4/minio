@@ -857,6 +857,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	}
 
 	// Fetch buffer for I/O, returns from the pool if not allocates a new one and returns.
+	// 用于处理I/O的字节缓存。如果对象大小小于1MB，自己分配。如果对象大小大于或等于1MB，则从erasureObjects的字节缓存池中取一个缓存。
 	var buffer []byte
 	switch size := data.Size(); {
 	case size == 0:
@@ -946,7 +947,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 
 	// 将data转换成io.Reader类型
 	toEncode := io.Reader(data)
-	// 如果对象大小大于128MB
+	// 如果对象大小大于128MB，创建一个带有缓存的reader，并赋值给toEncode变量
 	if data.Size() > bigFileThreshold {
 		// We use 2 buffers, so we always have a full buffer of input.
 		bufA := er.bp.Get()

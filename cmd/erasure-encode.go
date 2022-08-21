@@ -48,6 +48,7 @@ func (p *parallelWriter) Write(ctx context.Context, blocks [][]byte) error {
 		go func(i int) {
 			defer wg.Done()
 			var n int
+			// writers是streamingBitrotWriter结构体的实现
 			n, p.errs[i] = p.writers[i].Write(blocks[i])
 			if p.errs[i] == nil {
 				if n != len(blocks[i]) {
@@ -82,6 +83,7 @@ func (e *Erasure) Encode(ctx context.Context, src io.Reader, writers []io.Writer
 
 	for {
 		var blocks [][]byte
+		// 读取对象到传入的buffer中
 		n, err := io.ReadFull(src, buf)
 		if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 			logger.LogIf(ctx, err)
@@ -93,6 +95,7 @@ func (e *Erasure) Encode(ctx context.Context, src io.Reader, writers []io.Writer
 			break
 		}
 		// We take care of the situation where if n == 0 and total == 0 by creating empty data and parity files.
+		// 对buffer中的数据进行编码，并按磁盘数量进行分块。
 		blocks, err = e.EncodeData(ctx, buf[:n])
 		if err != nil {
 			logger.LogIf(ctx, err)
