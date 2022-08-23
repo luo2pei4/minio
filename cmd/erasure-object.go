@@ -742,7 +742,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 
 	// 校验盘数量初始化为set总磁盘数的一半
 	parityDrives := len(storageDisks) / 2
-	// 没有设置最大冗余（N/2）的场合
+	// 没有设置最大冗余（N/2）的场合，只有保存服务配置文件的时候这个变量才会设置为true
 	if !opts.MaxParity {
 		// Get parity and data drive count based on storage class metadata
 		// 根据用户设置获取基偶校验盘数量，默认为2块盘
@@ -882,6 +882,10 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	}
 
 	partName := "part.1"
+	// 对象的临时文件路径
+	// {uuid1}/{uuid2}/part.1
+	// uuid1: uniqueID
+	// uuid2: fi.DataDir
 	tempErasureObj := pathJoin(uniqueID, fi.DataDir, partName)
 
 	// Delete temporary object in the event of failure.
@@ -963,6 +967,8 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	}
 
 	// 在Encode方法中落盘数据
+	// 写入对象时先写到下列路径下：
+	// /{moutpoint}/.minio.sys/tmp/{uuid1}/{uuid2}/part.1
 	n, erasureErr := erasure.Encode(ctx, toEncode, writers, buffer, writeQuorum)
 	closeBitrotWriters(writers)
 	if erasureErr != nil {
@@ -1032,6 +1038,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	}
 
 	// Rename the successfully written temporary object to final location.
+	// 变量tempObj的值等于变量uniqueID的值，临时文件保存路径中的第一个uuid路径
 	if onlineDisks, err = renameData(ctx, onlineDisks, minioMetaTmpBucket, tempObj, partsMetadata, bucket, object, writeQuorum); err != nil {
 		if errors.Is(err, errFileNotFound) {
 			return ObjectInfo{}, toObjectErr(errErasureWriteQuorum, bucket, object)
