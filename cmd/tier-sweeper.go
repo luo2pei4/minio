@@ -72,6 +72,8 @@ func (os *objSweeper) WithVersioning(versioned, suspended bool) *objSweeper {
 
 // GetOpts returns ObjectOptions to fetch the object version that may be
 // overwritten or deleted depending on bucket versioning status.
+// 获取ObjectOptions实例，从objSweeper的实例获取版本ID、是否支持多版本、多版本特性是否挂起
+// 如果多版本特性已经挂起并且版本ID为空字符串，设置ObjectOptions实例的版本ID为字符串“null”
 func (os *objSweeper) GetOpts() ObjectOptions {
 	opts := ObjectOptions{
 		VersionID:        os.VersionID,

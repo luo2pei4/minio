@@ -3423,6 +3423,7 @@ func (api objectAPIHandlers) DeleteObjectHandler(w http.ResponseWriter, r *http.
 		}
 	}
 
+	// 设置对象的删除选项
 	opts, err := delOpts(ctx, r, bucket, object)
 	if err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
@@ -3438,14 +3439,19 @@ func (api objectAPIHandlers) DeleteObjectHandler(w http.ResponseWriter, r *http.
 		getObjectInfo = api.CacheAPI().GetObjectInfo
 	}
 
+	// 创建objSweeper实例，实例化时传入桶和对象名称，
+	// WithVersion方法设置对象的versionID，上面的delOpts函数获取
+	// WithVersioning方法设置对象是否是多版本，以及多版本特性是否挂起，上面的delOpts函数获取
 	os := newObjSweeper(bucket, object).WithVersion(opts.VersionID).WithVersioning(opts.Versioned, opts.VersionSuspended)
 	// Mutations of objects on versioning suspended buckets
 	// affect its null version. Through opts below we select
 	// the null version's remote object to delete if
 	// transitioned.
 	goiOpts := os.GetOpts()
+	// 获取对象信息，集群和纠删模式下嗲用的erasureServerPool结构体的GetObjectInfo方法
 	goi, gerr = getObjectInfo(ctx, bucket, object, goiOpts)
 	if gerr == nil {
+		// 对象信息获取成功的场合，设置对象的转储状态
 		os.SetTransitionState(goi.TransitionedObject)
 	}
 

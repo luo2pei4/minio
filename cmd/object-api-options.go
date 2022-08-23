@@ -181,6 +181,10 @@ func getOpts(ctx context.Context, r *http.Request, bucket, object string) (Objec
 	return opts, nil
 }
 
+// 设置对象删除选项，删除对象时将按删除选项的设置进行删除。主要设置以下值:
+//  1. Versioned，桶是否支持多版本，通过桶名查询globalBucketVersioningSys实例获取该值
+//  2. VersionSuspended，桶的多版本支持是否挂起。通过解析请求头中的x-minio-source-deletemarker参数获取
+//  3. MTime，桶的编辑时间，通过解析请求头中的x-minio-source-mtime参数获取
 func delOpts(ctx context.Context, r *http.Request, bucket, object string) (opts ObjectOptions, err error) {
 	versioned := globalBucketVersioningSys.Enabled(bucket)
 	opts, err = getOpts(ctx, r, bucket, object)
