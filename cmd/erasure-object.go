@@ -746,6 +746,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	// 校验盘数量初始化为set磁盘数的一半
 	parityDrives := len(storageDisks) / 2
 	// 没有设置最大冗余（N/2）的场合，只有保存server配置文件的时候这个变量才会设置为true
+	// 也就是说系统配置文件需要保证N/2的冗余
 	if !opts.MaxParity {
 		// Get parity and data drive count based on storage class metadata
 		// 根据用户设置获取基偶校验盘数量，默认为2块盘
@@ -770,15 +771,19 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 		// 遍历磁盘操作接口切片
 		for _, disk := range storageDisks {
 			// 磁盘信息为空的情况，校验盘数量加1
+			// 磁盘信息为空表示，在服务的启动参数中指定了该磁盘的路径，但在服务器上并为实际创建该路径
+			// 这种场景下需要增加冗余盘数量
 			if disk == nil {
 				atomicParityDrives.Inc()
 				continue
 			}
 			// 磁盘为离线状态的情况，校验盘数量加1
+			// 磁盘的在线和离线状态由另外一个后台定时扫描后进行设置
 			if !disk.IsOnline() {
 				atomicParityDrives.Inc()
 				continue
 			}
+			// 下記の処理は対象をアップロードする前にもう一度ディスクはオンラインかどうかを確認します
 			wg.Add(1)
 			go func(disk StorageAPI) {
 				defer wg.Done()

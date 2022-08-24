@@ -225,7 +225,7 @@ func connectLoadInitFormats(verboseLogging bool, firstDisk bool, endpoints Endpo
 	}
 
 	// All disks report unformatted we should initialized everyone.
-	// 所有pool的磁盘的format.json文件第一个pool的一个磁盘所有在节点（见firstDisk的取值）来集中创建。
+	// 所有pool的磁盘的format.json文件由启动配置中第一个pool的一个磁盘所有在节点（见firstDisk的取值）来集中创建。
 	if shouldInitErasureDisks(sErrs) && firstDisk {
 		logger.Info("Formatting %s pool, %v set(s), %v drives per set.",
 			humanize.Ordinal(poolCount), setCount, setDriveCount)

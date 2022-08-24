@@ -699,6 +699,9 @@ func initStorageDisksWithErrors(endpoints Endpoints) ([]StorageAPI, []error) {
 	for index := range endpoints {
 		index := index
 		g.Go(func() (err error) {
+			// 如果没有找到Endpoint结构体URL元素的path，返回nil。
+			// 简单来讲，如果启动参数中定义了某个磁盘的挂载路径，但实际没有创建这个路径的场合，就会返回nil
+			// 后续对StorageAPI切片的处理中需要判断是否为nil
 			storageDisks[index], err = newStorageAPI(endpoints[index])
 			return err
 		}, index)

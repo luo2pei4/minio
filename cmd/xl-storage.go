@@ -541,6 +541,8 @@ func (s *xlStorage) NSScanner(ctx context.Context, cache dataUsageCache, updates
 
 // DiskInfo provides current information about disk space usage,
 // total free inodes and underlying filesystem.
+// 获取当前磁盘才元数据信息，包括磁盘使用量、总容量、空inode信息等。
+// 在该方法中将获取对应磁盘的ID，如果方法内部没有读取到format.json文件时，将该磁盘的heal状态设置为true
 func (s *xlStorage) DiskInfo(context.Context) (info DiskInfo, err error) {
 	s.diskInfoCache.Once.Do(func() {
 		s.diskInfoCache.TTL = time.Second
@@ -576,6 +578,7 @@ func (s *xlStorage) DiskInfo(context.Context) (info DiskInfo, err error) {
 		}
 	})
 
+	// 获取指定磁盘的元数据信息
 	v, err := s.diskInfoCache.Get()
 	info = v.(DiskInfo)
 	return info, err
@@ -594,6 +597,7 @@ func (s *xlStorage) getVolDir(volume string) (string, error) {
 	return volumeDir, nil
 }
 
+// 检查指定磁盘的format.json文件是否存在，并返回format.json文件的os.FileInfo实例
 func (s *xlStorage) checkFormatJSON() (os.FileInfo, error) {
 	formatFile := pathJoin(s.diskPath, minioMetaBucket, formatConfigFile)
 	fi, err := Lstat(formatFile)
@@ -621,6 +625,8 @@ func (s *xlStorage) checkFormatJSON() (os.FileInfo, error) {
 }
 
 // GetDiskID - returns the cached disk uuid
+// 返回磁盘的ID，初次调用该方法时将从指定路径的format.json文件中读取磁盘ID并返回.
+// 后续在对相同磁盘操作实例（xlStorage）调用该方法时，将直接从内存中读取磁盘ID并返回
 func (s *xlStorage) GetDiskID() (string, error) {
 	s.RLock()
 	diskID := s.diskID
@@ -634,6 +640,8 @@ func (s *xlStorage) GetDiskID() (string, error) {
 	}
 	s.RUnlock()
 
+	// 检查指定磁盘的format.json文件是否存在，并返回format.json文件的os.FileInfo实例
+	// 相当于是format.json文件的元数据
 	fi, err := s.checkFormatJSON()
 	if err != nil {
 		return "", err
@@ -647,6 +655,7 @@ func (s *xlStorage) GetDiskID() (string, error) {
 		return diskID, nil
 	}
 
+	// 读取指定路径下的format.json文件的内容
 	formatFile := pathJoin(s.diskPath, minioMetaBucket, formatConfigFile)
 	b, err := ioutil.ReadFile(formatFile)
 	if err != nil {
@@ -670,6 +679,7 @@ func (s *xlStorage) GetDiskID() (string, error) {
 		return "", errCorruptedFormat
 	}
 
+	// 解析读取的format.json文件的内容到formatErasureV3结构体的实例
 	format := &formatErasureV3{}
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	if err = json.Unmarshal(b, &format); err != nil {
@@ -680,6 +690,7 @@ func (s *xlStorage) GetDiskID() (string, error) {
 	s.Lock()
 	defer s.Unlock()
 	s.formatData = b
+	// 读取format.json文件中的磁盘ID并设置
 	s.diskID = format.Erasure.This
 	s.formatLegacy = format.Erasure.DistributionAlgo == formatErasureVersionV2DistributionAlgoV1
 	s.formatFileInfo = fi

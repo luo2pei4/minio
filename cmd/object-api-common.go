@@ -75,6 +75,7 @@ func newStorageAPIWithoutHealthCheck(endpoint Endpoint) (storage StorageAPI, err
 }
 
 // Depending on the disk type network or local, initialize storage API.
+// 返回StorageAPI接口的实例
 func newStorageAPI(endpoint Endpoint) (storage StorageAPI, err error) {
 	if endpoint.IsLocal {
 		storage, err := newXLStorage(endpoint)
