@@ -61,6 +61,8 @@ func NewErasure(ctx context.Context, dataBlocks, parityBlocks int, blockSize int
 	var once sync.Once
 	e.encoder = func() reedsolomon.Encoder {
 		once.Do(func() {
+			// 传入数据盘数量和校验盘数量，获取reedSolomon实例，
+			// reedSolomon实例中的DataShards就是数据盘数量,ParityShards就是校验盘数量
 			e, err := reedsolomon.New(dataBlocks, parityBlocks, reedsolomon.WithAutoGoroutines(int(e.ShardSize())))
 			if err != nil {
 				// Error conditions should be checked above.
@@ -75,15 +77,27 @@ func NewErasure(ctx context.Context, dataBlocks, parityBlocks int, blockSize int
 
 // EncodeData encodes the given data and returns the erasure-coded data.
 // It returns an error if the erasure coding failed.
+// 对对象进行数据分片和纠删编码。
+// !!请重点看方法体内的注释!!
 func (e *Erasure) EncodeData(ctx context.Context, data []byte) ([][]byte, error) {
 	if len(data) == 0 {
 		return make([][]byte, e.dataBlocks+e.parityBlocks), nil
 	}
+	// reedSolomon结构体的Splite方法做了下面几件事：
+	//  1. 根据结构体中保存的数据盘数量计算每个分片的大小
+	//  2. 用步骤1获取的分片大小乘以（数据盘+校验盘）数量，获得对象数据+校验数据的总容量大小，并创建对应大小的切片
+	//  3. 将数据对象的切片拷贝到步骤2创建的切片中，后面不足的全部用0补足。
+	//  4. 按步骤1获取的切片大小切割对象字节切片，并依次放入将要返回的二维切片中并返回
+	// 步骤4中采用了两次for循环，在第一次for循环中将对象数据切割后保存，第二次for循环实际是对步骤3中补0的那部分切片进行分割并保存
+	// 两次for循环后，在返回的二维切片中就顺次存放了与数据盘数量和校验盘数量一致的数据切片
 	encoded, err := e.encoder().Split(data)
 	if err != nil {
 		logger.LogIf(ctx, err)
 		return nil, err
 	}
+	// Encode方法实际做了下面几件事完成编码：
+	//  1. 从传入的encoded中取出数据分片部分和校验分片部分
+	//  2. 对数据分片部分的数据进行编码计算并将计算结果回写到校验分片部分
 	if err = e.encoder().Encode(encoded); err != nil {
 		logger.LogIf(ctx, err)
 		return nil, err

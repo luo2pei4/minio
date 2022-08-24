@@ -730,7 +730,13 @@ func (er erasureObjects) PutObject(ctx context.Context, bucket string, object st
 }
 
 // putObject wrapper for erasureObjects PutObject
-// 将对象上传写入当前set的磁盘上
+// 将对象上传写入当前set的磁盘上,大致思路如下
+//  1、每个set中的挂载点（一个挂载点对应一块磁盘）编号是顺序排列的（服务启动时根据启动配置进行处理）
+//  2、上传对象时，用对象名称计算出一个新的索引
+//  3、用新的索引对挂载点进行重新排列，生成一个新的挂载点数列
+//  4、对象数据进行分片和纠删编码后按数据分片在前，纠删编码在后的顺序排列
+//  5、写入数据时遍历步骤3的数列，按数列的索引将步骤4中对应索引的分片写入磁盘
+//  6、写入完成后对比写入成功的分片数量和写仲裁数量，小于写仲裁数量的场合写入失败，大于或等于的场合继续后续rename处理
 func (er erasureObjects) putObject(ctx context.Context, bucket string, object string, r *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, err error) {
 	data := r.Reader
 
@@ -830,7 +836,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	}
 
 	// Initialize parts metadata
-	// 创建对象part元数据切片
+	// 创建对象part元数据切片,实际上是对part.1文件的元文件
 	partsMetadata := make([]FileInfo, len(storageDisks))
 
 	// 创建FileInfo的实例
@@ -907,6 +913,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	}()
 
 	// 根据对象大小计算一个对象切分到一个数据盘上实际占用的空间大小（后简称单盘文件大小）
+	// 这个计算主要用来判断是否将上传文件保存到xl.meta文件中还是单独写part.1文件
 	shardFileSize := erasure.ShardFileSize(data.Size())
 	// 创建io.writer切片用于写入数据
 	writers := make([]io.Writer, len(onlineDisks))
@@ -977,6 +984,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	// 在Encode方法中落盘数据
 	// 写入对象时先写到下列路径下：
 	// /{moutpoint}/.minio.sys/tmp/{uuid1}/{uuid2}/part.1
+	// 传入的writers切片中，每个writer对应了一块具体的磁盘
 	n, erasureErr := erasure.Encode(ctx, toEncode, writers, buffer, writeQuorum)
 	closeBitrotWriters(writers)
 	if erasureErr != nil {

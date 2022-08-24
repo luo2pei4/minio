@@ -104,6 +104,9 @@ func diskCount(disks []StorageAPI) int {
 // with an input key. This results in consistent order.
 // NOTE: collisions are fine, we are not looking for uniqueness
 // in the slices returned.
+// 根据key计算出长度为cardinality的整数切片
+// 切片中的数值从1开始，到cardinality的值为止
+// 切片中第一个元素的值是用key进行crc32的checksum函数计算后的值和和cardinality取余
 func hashOrder(key string, cardinality int) []int {
 	if cardinality <= 0 {
 		// Returns an empty int slice for cardinality < 0.
@@ -209,6 +212,8 @@ func shuffleDisksAndPartsMetadataByIndex(disks []StorageAPI, metaArr []FileInfo,
 // additional validation is attempted and invalid metadata is
 // automatically skipped only when fi.ModTime is non-zero
 // indicating that this is called during read-phase
+// 该函数的主要目的其实是将StorageAPI实例按fileInfo的distribution指定的位置进行排列
+// partsMetadata也会按fileInfo的distribution指定的位置进行排列，但初期partsMetadata中的数据都是相同的，所以怎么排都无所谓。
 func shuffleDisksAndPartsMetadata(disks []StorageAPI, partsMetadata []FileInfo, fi FileInfo) (shuffledDisks []StorageAPI, shuffledPartsMetadata []FileInfo) {
 	shuffledDisks = make([]StorageAPI, len(disks))
 	shuffledPartsMetadata = make([]FileInfo, len(partsMetadata))
