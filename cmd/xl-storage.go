@@ -302,6 +302,7 @@ func newXLStorage(ep Endpoint) (s *xlStorage, err error) {
 }
 
 // getDiskInfo returns given disk information.
+// linux的场合，通过syscall.statfs函数获取指定路径的磁盘信息
 func getDiskInfo(diskPath string) (di disk.Info, err error) {
 	if err = checkPathLength(diskPath); err == nil {
 		di, err = disk.GetInfo(diskPath)

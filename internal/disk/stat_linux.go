@@ -26,6 +26,7 @@ import (
 )
 
 // GetInfo returns total and free bytes available in a directory, e.g. `/`.
+// 获取指定路径所在磁盘的信息。包括总磁盘物理总容量、磁盘物理剩余容量和磁盘物理使用容量等
 func GetInfo(path string) (info Info, err error) {
 	s := syscall.Statfs_t{}
 	err = syscall.Statfs(path, &s)
