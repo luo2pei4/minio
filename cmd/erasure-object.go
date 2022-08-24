@@ -724,11 +724,13 @@ func (er erasureObjects) putMetacacheObject(ctx context.Context, key string, r *
 // until EOF, erasure codes the data across all disk and additionally
 // writes `xl.meta` which carries the necessary metadata for future
 // object operations.
+// 将对象上传写入当前set的磁盘上
 func (er erasureObjects) PutObject(ctx context.Context, bucket string, object string, data *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, err error) {
 	return er.putObject(ctx, bucket, object, data, opts)
 }
 
 // putObject wrapper for erasureObjects PutObject
+// 将对象上传写入当前set的磁盘上
 func (er erasureObjects) putObject(ctx context.Context, bucket string, object string, r *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, err error) {
 	data := r.Reader
 
@@ -738,11 +740,12 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	}
 
 	// erasureObjects结构体的getDisks属性由erasureSets的GetDisks方法实现
+	// 获取当前set的所有StorageAPI实现（xlStorage）的切片
 	storageDisks := er.getDisks()
 
-	// 校验盘数量初始化为set总磁盘数的一半
+	// 校验盘数量初始化为set磁盘数的一半
 	parityDrives := len(storageDisks) / 2
-	// 没有设置最大冗余（N/2）的场合，只有保存服务配置文件的时候这个变量才会设置为true
+	// 没有设置最大冗余（N/2）的场合，只有保存server配置文件的时候这个变量才会设置为true
 	if !opts.MaxParity {
 		// Get parity and data drive count based on storage class metadata
 		// 根据用户设置获取基偶校验盘数量，默认为2块盘

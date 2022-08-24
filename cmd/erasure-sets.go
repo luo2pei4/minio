@@ -346,6 +346,7 @@ func (s *erasureSets) GetEndpoints(setIndex int) func() []Endpoint {
 }
 
 // GetDisks returns a closure for a given set, which provides list of disks per set.
+// 获取当前pool中指定set的所有磁盘操作（StorageAPI接口的实现）
 func (s *erasureSets) GetDisks(setIndex int) func() []StorageAPI {
 	return func() []StorageAPI {
 		s.erasureDisksMu.RLock()
@@ -437,12 +438,15 @@ func newErasureSets(ctx context.Context, endpoints PoolEndpoints, storageDisks [
 		}
 	}
 
+	// 遍历单个pool的所有set
 	var wg sync.WaitGroup
 	for i := 0; i < setCount; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
 
+			// 遍历单个set中的所有磁盘
+			// 传入的storageDisks参数中包含了单个pool中所有StorageAPI接口的实现(xlStorage)
 			var innerWg sync.WaitGroup
 			for j := 0; j < setDriveCount; j++ {
 				disk := storageDisks[i*setDriveCount+j]
@@ -480,6 +484,8 @@ func newErasureSets(ctx context.Context, endpoints PoolEndpoints, storageDisks [
 			innerWg.Wait()
 
 			// Initialize erasure objects for a given set.
+			// 设置单个set的信息，包括set的索引，set所在pool的索引，set中的磁盘数量，
+			// 获取所有磁盘的StorageAPI接口的实现
 			s.sets[i] = &erasureObjects{
 				setIndex:              i,
 				poolIndex:             poolIdx,

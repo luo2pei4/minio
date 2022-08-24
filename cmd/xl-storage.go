@@ -549,6 +549,7 @@ func (s *xlStorage) DiskInfo(context.Context) (info DiskInfo, err error) {
 				MountPath: s.diskPath,
 				Endpoint:  s.endpoint.String(),
 			}
+			// s.diskPath实际是Endpoint结构体元素URL中的path变量
 			di, err := getDiskInfo(s.diskPath)
 			if err != nil {
 				return dcinfo, err
