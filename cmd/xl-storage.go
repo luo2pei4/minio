@@ -2052,6 +2052,11 @@ func (s *xlStorage) Delete(ctx context.Context, volume string, path string, recu
 	return s.deleteFile(volumeDir, filePath, recursive)
 }
 
+// 包含下列字段的路径可以跳过访问检查
+//  1. .minio.sys/tmp
+//  2. .minio.sys
+//  3. .minio.sys/multipart
+//  4. .minio.sys/tmp/.trash
 func skipAccessChecks(volume string) (ok bool) {
 	switch volume {
 	case minioMetaTmpBucket, minioMetaBucket, minioMetaMultipartBucket, minioMetaTmpDeletedBucket:
@@ -2061,6 +2066,10 @@ func skipAccessChecks(volume string) (ok bool) {
 }
 
 // RenameData - rename source path to destination path atomically, metadata and data directory.
+//  1. srcVolume: 一般为.minio.sys/tmp
+//  2. srcPath: 临时文件保存路径中的第一个uuid
+//  3. dstVolume: 真正的桶名
+//  4. dstPath: 真正的对象名称
 func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, fi FileInfo, dstVolume, dstPath string) (err error) {
 	defer func() {
 		if err != nil {
@@ -2083,16 +2092,21 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	// logger.Info("dstPath: %s", dstPath)
 	// --------------------------------------------------------------------------------------------
 
+	// 拼装临时对象临时保存目录的完整路径
+	// example: /data/minio1/.minio.sys/tmp
 	srcVolumeDir, err := s.getVolDir(srcVolume)
 	if err != nil {
 		return err
 	}
 
+	// 拼装上传对象所在桶的完整路径
+	// example: /data/minio1/mybucket
 	dstVolumeDir, err := s.getVolDir(dstVolume)
 	if err != nil {
 		return err
 	}
 
+	// 判断是否要对srcVolume做路径访问验证
 	if !skipAccessChecks(srcVolume) {
 		// Stat a volume entry.
 		if err = Access(srcVolumeDir); err != nil {
@@ -2105,7 +2119,9 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 		}
 	}
 
+	// 判断是否要对dstVolume做路径访问验证
 	if !skipAccessChecks(dstVolume) {
+		// 尝试访问指定路径，用于判断桶的目录是否存在
 		if err = Access(dstVolumeDir); err != nil {
 			if osIsNotExist(err) {
 				return errVolumeNotFound
@@ -2117,27 +2133,37 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	}
 
 	// 拼接源和目标的xl.meta文件路径
+	// example: /data/minio1/.minio.sys/tmp/{uuid1}/xl.meta
 	srcFilePath := pathutil.Join(srcVolumeDir, pathJoin(srcPath, xlStorageFormatFile))
+	// example: /data/minio1/mybucket/myobject/xl.meta
 	dstFilePath := pathutil.Join(dstVolumeDir, pathJoin(dstPath, xlStorageFormatFile))
 
 	var srcDataPath string
 	var dstDataPath string
 	var dataDir string
 	if !fi.IsRemote() {
+		// fi.DataDir就是对象临时保存路径中的第二个uuid
+		// dataDir的值为uuid2 + "/"
 		dataDir = retainSlash(fi.DataDir)
 	}
 	if dataDir != "" {
+		// 拼装临时保存数据的路径
+		// example: /data/minio1/.minio.sys/tmp/{uuid1}/{uuid2}/
 		srcDataPath = retainSlash(pathJoin(srcVolumeDir, srcPath, dataDir))
 		// make sure to always use path.Join here, do not use pathJoin as
 		// it would additionally add `/` at the end and it comes in the
 		// way of renameAll(), parentDir creation.
+		// 拼装最终保存数据的路径
+		// example: /data/minio1/mybucket/myobject/{uuid2}/
 		dstDataPath = pathutil.Join(dstVolumeDir, dstPath, dataDir)
 	}
 
+	// 检查源的元数据文件路径长度是否超过255个字节
 	if err = checkPathLength(srcFilePath); err != nil {
 		return err
 	}
 
+	// 检查目标的元数据文件路径长度是否超过255个字节
 	if err = checkPathLength(dstFilePath); err != nil {
 		return err
 	}
@@ -2152,7 +2178,8 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	// logger.Info("dataDir: %s", dataDir)
 	// --------------------------------------------------------------------------------------------
 
-	// 读取目标文件的xl.meta文件
+	// 读取目标的xl.meta文件
+	// 初次上传的时候没有这个文件
 	dstBuf, err := xioutil.ReadFile(dstFilePath)
 	if err != nil {
 		// handle situations when dstFilePath is 'file'
@@ -2238,7 +2265,9 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 		}
 	}
 
+	// 是否支持legacy
 	legacyDataPath := pathJoin(dstVolumeDir, dstPath, legacyDataDir)
+	// ********** 暂不考虑legacy的场合，跳过该分支的解析 **********
 	if legacyPreserved {
 		// Preserve all the legacy data, could be slow, but at max there can be 10,000 parts.
 		currentDataPath := pathJoin(dstVolumeDir, dstPath)
@@ -2270,6 +2299,8 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	}
 
 	var oldDstDataPath string
+
+	// 版本ID为空的场合
 	if fi.VersionID == "" {
 		// return the latest "null" versionId info
 		ofi, err := xlMeta.ToFileInfo(dstVolume, dstPath, nullVersionID)

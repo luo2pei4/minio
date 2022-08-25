@@ -543,6 +543,10 @@ func (er erasureObjects) getObjectInfoAndQuorum(ctx context.Context, bucket, obj
 }
 
 // Similar to rename but renames data from srcEntry to dstEntry at dataDir
+//  1. srcBucket: 一般为.minio.sys/tmp
+//  2. srcEntry: 临时文件保存路径中的第一个uuid
+//  3. dstBucket: 真正的桶名
+//  4. dstEntry: 真正的对象名称
 func renameData(ctx context.Context, disks []StorageAPI, srcBucket, srcEntry string, metadata []FileInfo, dstBucket, dstEntry string, writeQuorum int) ([]StorageAPI, error) {
 	defer NSUpdated(dstBucket, dstEntry)
 
