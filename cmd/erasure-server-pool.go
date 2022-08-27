@@ -504,6 +504,7 @@ func (z *erasureServerPools) LocalStorageInfo(ctx context.Context) (StorageInfo,
 	return storageInfo, errs
 }
 
+// 返回值StorageInfo的实例中有一个Disk的切片，其中包含了所有pool的磁盘的信息
 func (z *erasureServerPools) StorageInfo(ctx context.Context) (StorageInfo, []error) {
 	var storageInfo StorageInfo
 

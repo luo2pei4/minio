@@ -1594,6 +1594,7 @@ func (x *xlMetaV2) AddLegacy(m *xlMetaV1Object) error {
 // for consumption across callers.
 func (x xlMetaV2) ToFileInfo(volume, path, versionID string) (fi FileInfo, err error) {
 	var uv uuid.UUID
+	// 桶不支持多版本或多版本挂起的场合不进入此分支
 	if versionID != "" && versionID != nullVersionID {
 		uv, err = uuid.Parse(versionID)
 		if err != nil {

@@ -2303,6 +2303,7 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	// 版本ID为空的场合
 	if fi.VersionID == "" {
 		// return the latest "null" versionId info
+		// 桶不支持多版本或多版本挂起的场合，返回一个初始化的FileInfo对象和errFileVersionNotFound错误
 		ofi, err := xlMeta.ToFileInfo(dstVolume, dstPath, nullVersionID)
 		if err == nil && !ofi.Deleted {
 			if xlMeta.SharedDataDirCountStr(nullVersionID, ofi.DataDir) == 0 {
@@ -2329,6 +2330,7 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	// healing doesn't preserve the dataDir as 'legacy'
 	healing := fi.XLV1 && fi.DataDir != legacyDataDir
 
+	// 添加文件的版本信息，暂时跳过详细内容解析 TODO
 	if err = xlMeta.AddVersion(fi); err != nil {
 		if legacyPreserved {
 			// Any failed rename calls un-roll previous transaction.

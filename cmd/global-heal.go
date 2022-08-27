@@ -104,6 +104,7 @@ func getBackgroundHealStatus(ctx context.Context, o ObjectLayer) (madmin.BgHealS
 	}
 
 	// ignores any errors here.
+	// 纠删和集群模式下返回值StorageInfo的实例中有一个Disk的切片，其中包含了所有pool的磁盘的信息
 	si, _ := o.StorageInfo(ctx)
 
 	indexed := make(map[string][]madmin.Disk)
