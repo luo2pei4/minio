@@ -2339,6 +2339,7 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 		return err
 	}
 
+	// 构建xl.meta文件buf
 	dstBuf, err = xlMeta.AppendTo(metaDataPoolGet())
 	defer metaDataPoolPut(dstBuf)
 	if err != nil {
@@ -2350,6 +2351,7 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 		return errFileCorrupt
 	}
 
+	// 将xl.meta文件的buf写入对象临时保存的目录，临时路径的第一个uuid路径下面。
 	if srcDataPath != "" {
 		if err = s.WriteAll(ctx, srcVolume, pathJoin(srcPath, xlStorageFormatFile), dstBuf); err != nil {
 			if legacyPreserved {
@@ -2368,6 +2370,7 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 				// on a versioned bucket.
 				s.moveToTrash(legacyDataPath, true)
 			}
+			// 修改数据文件路径
 			if err = renameAll(srcDataPath, dstDataPath); err != nil {
 				if legacyPreserved {
 					// Any failed rename calls un-roll previous transaction.
@@ -2379,6 +2382,7 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 		}
 
 		// Commit meta-file
+		// 修改元数据文件xl.meta的路径
 		if err = renameAll(srcFilePath, dstFilePath); err != nil {
 			if legacyPreserved {
 				// Any failed rename calls un-roll previous transaction.
@@ -2410,6 +2414,7 @@ func (s *xlStorage) RenameData(ctx context.Context, srcVolume, srcPath string, f
 	// remove the temporary folder is enough since at this point
 	// ideally all transaction should be complete.
 
+	// 删除临时目录下的xl.meta文件
 	Remove(pathutil.Dir(srcFilePath))
 	return nil
 }
