@@ -222,6 +222,7 @@ func validateParity(ssParity, rrsParity, setDriveCount int) (err error) {
 // -- if input is STANDARD but STANDARD is not configured '0' parity
 //    is returned, the caller is expected to choose the right parity
 //    at that point.
+// 根据传入的存储类型(storage class)参数，返回冗余盘的数量
 func (sCfg Config) GetParityForSC(sc string) (parity int) {
 	ConfigLock.RLock()
 	defer ConfigLock.RUnlock()

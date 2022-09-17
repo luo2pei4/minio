@@ -175,6 +175,7 @@ func (er erasureObjects) GetObjectNInfo(ctx context.Context, bucket, object stri
 		unlockOnDefer = true
 	}
 
+	// 获取对象的part元数据，part元数据切片，硬盘操作实例切片和错误信息
 	fi, metaArr, onlineDisks, err := er.getObjectFileInfo(ctx, bucket, object, opts, true)
 	if err != nil {
 		return nil, toObjectErr(err, bucket, object)
@@ -428,8 +429,11 @@ func (er erasureObjects) getObjectFileInfo(ctx context.Context, bucket, object s
 	// 读取所有磁盘的下指定路径中的xl.meta文件.
 	metaArr, errs := readAllFileInfo(ctx, disks, bucket, object, opts.VersionID, readData)
 
+	// 获取读写冗余
 	readQuorum, _, err := objectQuorumFromMeta(ctx, metaArr, errs, er.defaultParityCount)
 	if err != nil {
+		// objectQuorumFromMeta函数中只有在调用getLatestFileInfo函数时才会产生errErasureReadQuorum异常
+		// 原因大致是对象的所有part的有效元数据数量小于数据盘数量
 		if errors.Is(err, errErasureReadQuorum) && !strings.HasPrefix(bucket, minioMetaBucket) {
 			_, derr := er.deleteIfDangling(ctx, bucket, object, metaArr, errs, nil, opts)
 			if derr != nil {
@@ -450,14 +454,18 @@ func (er erasureObjects) getObjectFileInfo(ctx context.Context, bucket, object s
 	}
 
 	// List all online disks.
+	// 根据元数据信息返回一个只有在线磁盘的切片
 	onlineDisks, modTime := listOnlineDisks(disks, metaArr, errs)
 
 	// Pick latest valid metadata.
+	// 该调用中需要判断读仲裁数量是否小于2
+	// 详见findFileInfoInQuorum函数调用
 	fi, err = pickValidFileInfo(ctx, metaArr, modTime, readQuorum)
 	if err != nil {
 		return fi, nil, nil, err
 	}
 
+	// 过滤掉非V1格式的在线盘操作实例
 	filterOnlineDisksInplace(fi, metaArr, onlineDisks)
 
 	// if one of the disk is offline, return right here no need
@@ -481,6 +489,7 @@ func (er erasureObjects) getObjectFileInfo(ctx context.Context, bucket, object s
 	// if missing metadata can be reconstructed, attempt to reconstruct.
 	// additionally do not heal delete markers inline, let them be
 	// healed upon regular heal process.
+	// 尝试修复磁盘
 	if !fi.Deleted && missingBlocks > 0 && missingBlocks < readQuorum {
 		if _, healing := er.getOnlineDisksWithHealing(); !healing {
 			go healObject(bucket, object, fi.VersionID, madmin.HealNormalScan)
@@ -781,7 +790,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 		// 遍历磁盘操作接口切片
 		for _, disk := range storageDisks {
 			// 磁盘信息为空的情况，校验盘数量加1
-			// 磁盘信息为空表示，在服务的启动参数中指定了该磁盘的路径，但在服务器上并为实际创建该路径
+			// 磁盘信息为空表示，在服务的启动参数中指定了该磁盘的路径，但在服务器上并未实际创建该路径
 			// 这种场景下需要增加冗余盘数量
 			if disk == nil {
 				atomicParityDrives.Inc()

@@ -295,6 +295,7 @@ func (fi FileInfo) ObjectToPartOffset(ctx context.Context, offset int64) (partIn
 	return 0, 0, InvalidRange{}
 }
 
+// 从传入的part元数据切片中返回任意一个有效的part元数据，该方法只会返回的错误信息类型只有errErasureReadQuorum一种。
 func findFileInfoInQuorum(ctx context.Context, metaArr []FileInfo, modTime time.Time, quorum int) (FileInfo, error) {
 	// with less quorum return error.
 	if quorum < 2 {
@@ -349,10 +350,12 @@ func findFileInfoInQuorum(ctx context.Context, metaArr []FileInfo, modTime time.
 		}
 	}
 
+	// 计算后有效的part元数据数量小于仲裁数量的情况，返回错误信息
 	if maxCount < quorum {
 		return FileInfo{}, errErasureReadQuorum
 	}
 
+	// 返回任意一个有效的part的元数据
 	for i, hash := range metaHashes {
 		if hash == maxHash {
 			if metaArr[i].IsValid() {
@@ -412,13 +415,23 @@ func writeUniqueFileInfo(ctx context.Context, disks []StorageAPI, bucket, prefix
 // Returns per object readQuorum and writeQuorum
 // readQuorum is the min required disks to read data.
 // writeQuorum is the min required disks to write data.
+// 根据传入的part切片和error对象切片，返回对象的读写仲裁数量
+// 如果对上传对象的最后一次操作为删除操作，读仲裁为传入part切片长度的一半，写仲裁为读仲裁数量加1
+// 如果对上传对象的最后一次操作不是删除操作，根据以下步骤来计算
+//  1. 通过元数据中的存储类型来获取冗余盘数量
+//  2. 元数据中有记录EC降级的场合，从元数据记录中获取冗余盘数量，覆盖步骤1的结果
+//  3. 从元数据记录中获取数据盘的数量，获取结果为0的场合，用传入part切片长度减去冗余盘数量
+//  4. 用步骤1或2获取的数据盘数量作为读仲裁
+//  5. 如果上述步骤中获取的冗余盘数量和数据盘数量相等，写仲裁为数据盘数量加1，否则写仲裁为数据盘数量
 func objectQuorumFromMeta(ctx context.Context, partsMetaData []FileInfo, errs []error, defaultParityCount int) (objectReadQuorum, objectWriteQuorum int, err error) {
 	// get the latest updated Metadata and a count of all the latest updated FileInfo(s)
+	// 从传入的分片元数据切片中获取modtime最近的分片元数据
 	latestFileInfo, err := getLatestFileInfo(ctx, partsMetaData, errs)
 	if err != nil {
 		return 0, 0, err
 	}
 
+	// 对指定对象最后一次操作为删除的场景，返回读写仲裁
 	if latestFileInfo.Deleted {
 		// For delete markers do not use 'defaultParityCount' as it is not expected to be the case.
 		// Use maximum allowed read quorum instead, writeQuorum+1 is returned for compatibility sake
@@ -427,24 +440,29 @@ func objectQuorumFromMeta(ctx context.Context, partsMetaData []FileInfo, errs []
 		return readQuorum, readQuorum + 1, nil
 	}
 
+	// 从对象的part元数据的MetaData属性中获取key为x-amz-storage-class的值，并作为传入参数，用于获取冗余盘数量
 	parityBlocks := globalStorageClass.GetParityForSC(latestFileInfo.Metadata[xhttp.AmzStorageClass])
+	// 获取的冗余盘数量小于等于0时，将冗余盘数量设置为传入的默认值
 	if parityBlocks <= 0 {
 		parityBlocks = defaultParityCount
 	}
 
 	// For erasure code upgraded objects choose the parity
 	// blocks saved internally, instead of 'defaultParityCount'
+	// 当元数据中保存有EC降级的信息时，获取元数据中的记录的冗余盘数量
 	if _, ok := latestFileInfo.Metadata[minIOErasureUpgraded]; ok {
 		if latestFileInfo.Erasure.ParityBlocks != 0 {
 			parityBlocks = latestFileInfo.Erasure.ParityBlocks
 		}
 	}
 
+	// 获取元数据中的记录的数据盘数量
 	dataBlocks := latestFileInfo.Erasure.DataBlocks
 	if dataBlocks == 0 {
 		dataBlocks = len(partsMetaData) - parityBlocks
 	}
 
+	// 计算些仲裁的数量
 	writeQuorum := dataBlocks
 	if dataBlocks == parityBlocks {
 		writeQuorum++

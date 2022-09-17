@@ -185,6 +185,7 @@ func getLatestFileInfo(ctx context.Context, partsMetadata []FileInfo, errs []err
 	}
 
 	// List all the file commit ids from parts metadata.
+	// 获取所有元数据中的编辑时间
 	modTimes := listObjectModtimes(partsMetadata, errs)
 
 	// Count all latest updated FileInfo values
@@ -192,24 +193,31 @@ func getLatestFileInfo(ctx context.Context, partsMetadata []FileInfo, errs []err
 	var latestFileInfo FileInfo
 
 	// Reduce list of UUIDs to a single common value - i.e. the last updated Time
+	// 返回出现次数最多的一个时间，正常情况下对象的更新（上传、删除）都会触发modtime变更
+	// 并且所有磁盘上的元数据中的modtime都是相同的
 	modTime := commonTime(modTimes)
 
+	// 如果modtime为零值，则返回读仲裁异常的错误信息
 	if modTime.IsZero() || modTime.Equal(timeSentinel) {
 		return FileInfo{}, errErasureReadQuorum
 	}
 
 	// Interate through all the modTimes and count the FileInfo(s) with latest time.
+	// 遍历part元数据的切片
 	for index, t := range modTimes {
 		if partsMetadata[index].IsValid() && t.Equal(modTime) {
 			latestFileInfo = partsMetadata[index]
+			// 有效磁盘计数
 			count++
 		}
 	}
 
+	// 再次校验part的元数据是否有效（够谨慎）
 	if !latestFileInfo.IsValid() {
 		return FileInfo{}, errErasureReadQuorum
 	}
 
+	// 有效磁盘数小于数据盘数量，表示损坏已经超冗余了，返回错误信息
 	if count < latestFileInfo.Erasure.DataBlocks {
 		return FileInfo{}, errErasureReadQuorum
 	}
