@@ -233,6 +233,7 @@ func (er erasureObjects) GetObjectNInfo(ctx context.Context, bucket, object stri
 	unlockOnDefer = false
 
 	pr, pw := xioutil.WaitPipe()
+	// 启动一个协程，读取所有磁盘上的part文件并写入传入的pw
 	go func() {
 		pw.CloseWithError(er.getObjectWithFileInfo(ctx, bucket, object, off, length, pw, fi, metaArr, onlineDisks))
 	}()
@@ -243,12 +244,14 @@ func (er erasureObjects) GetObjectNInfo(ctx context.Context, bucket, object stri
 		pr.CloseWithError(nil)
 	}
 
+	// 返回可以构造GetObjectReader结构体的函数
 	return fn(pr, h, pipeCloser, nsUnlocker)
 }
 
 func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, object string, startOffset int64, length int64, writer io.Writer, fi FileInfo, metaArr []FileInfo, onlineDisks []StorageAPI) error {
 	// Reorder online disks based on erasure distribution order.
 	// Reorder parts metadata based on erasure distribution order.
+	// 重新排列StorageAPI切片和元数据信息切片，按FileInfo中的distribution切片中的值进行排序
 	onlineDisks, metaArr = shuffleDisksAndPartsMetadataByIndex(onlineDisks, metaArr, fi)
 
 	// For negative length read everything.
@@ -263,18 +266,22 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 	}
 
 	// Get start part index and offset.
+	// 根据起始偏移量计算出所在part的索引，以及所在part的偏移量。
+	// 如果是全量下载，part索引和所在part偏移量都是0
 	partIndex, partOffset, err := fi.ObjectToPartOffset(ctx, startOffset)
 	if err != nil {
 		return InvalidRange{startOffset, length, fi.Size}
 	}
 
 	// Calculate endOffset according to length
+	// 全量下载的场合，endOffset为对象长度减1
 	endOffset := startOffset
 	if length > 0 {
 		endOffset += length - 1
 	}
 
 	// Get last part index to read given length.
+	// 根据endOffset获取最后一个part的索引
 	lastPartIndex, _, err := fi.ObjectToPartOffset(ctx, endOffset)
 	if err != nil {
 		return InvalidRange{startOffset, length, fi.Size}

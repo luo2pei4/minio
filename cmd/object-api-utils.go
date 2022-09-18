@@ -589,6 +589,8 @@ type ObjReaderFn func(inputReader io.Reader, h http.Header, cleanupFns ...func()
 // are called on Close() in FIFO order as passed in ObjReadFn(). NOTE: It is
 // assumed that clean up functions do not panic (otherwise, they may
 // not all run!).
+// 根据传入的对象信息，判断对象是否是压缩或加密
+// 并根据判断结果构造用于实例化GetObjectReader结构体的函数
 func NewGetObjectReader(rs *HTTPRangeSpec, oi ObjectInfo, opts ObjectOptions) (
 	fn ObjReaderFn, off, length int64, err error,
 ) {
@@ -757,10 +759,12 @@ func NewGetObjectReader(rs *HTTPRangeSpec, oi ObjectInfo, opts ObjectOptions) (
 		}
 
 	default:
+		// 如果下载请求中没有带HTTPRangeSpec实例，该方法返回的off为0，length为对象总长度
 		off, length, err = rs.GetOffsetLength(oi.Size)
 		if err != nil {
 			return nil, 0, 0, err
 		}
+		// 默认情况下只是返回一个构造GetObjectReader对象的方法而以
 		fn = func(inputReader io.Reader, _ http.Header, cFns ...func()) (r *GetObjectReader, err error) {
 			r = &GetObjectReader{
 				ObjInfo:    oi,

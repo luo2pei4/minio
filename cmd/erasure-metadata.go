@@ -117,6 +117,7 @@ func (fi FileInfo) IsValid() bool {
 }
 
 // ToObjectInfo - Converts metadata to object info.
+// 用对象的元数据信息创建对象信息，返回ObjectInfo结构体实例
 func (fi FileInfo) ToObjectInfo(bucket, object string) ObjectInfo {
 	object = decodeDirObject(object)
 	versionID := fi.VersionID

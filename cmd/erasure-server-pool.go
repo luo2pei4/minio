@@ -710,6 +710,7 @@ func (z *erasureServerPools) MakeBucketWithLocation(ctx context.Context, bucket 
 	return nil
 }
 
+// 获取指定对象，从object-handler处调用的时候，LockType为1(readLock)
 func (z *erasureServerPools) GetObjectNInfo(ctx context.Context, bucket, object string, rs *HTTPRangeSpec, h http.Header, lockType LockType, opts ObjectOptions) (gr *GetObjectReader, err error) {
 	if err = checkGetObjArgs(ctx, bucket, object); err != nil {
 		return nil, err

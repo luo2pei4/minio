@@ -20,6 +20,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -222,6 +223,7 @@ func (e Erasure) Decode(ctx context.Context, writer io.Writer, readers []io.Read
 		reader.preferReaders(prefer)
 	}
 
+	// blockSize默认为1MB
 	startBlock := offset / e.blockSize
 	endBlock := (offset + length) / e.blockSize
 
@@ -249,6 +251,10 @@ func (e Erasure) Decode(ctx context.Context, writer io.Writer, readers []io.Read
 
 		var err error
 		bufs, err = reader.Read(bufs)
+		for i, sli := range bufs {
+			fmt.Printf("block: %d, bufs index: %d, len: %d, blockOffset: %d, blockLength: %d\n", block, i, len(sli), blockOffset, blockLength)
+		}
+
 		if len(bufs) > 0 {
 			// Set only if there are be enough data for reconstruction.
 			// and only for expected errors, also set once.

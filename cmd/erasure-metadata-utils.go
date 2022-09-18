@@ -160,6 +160,8 @@ func readAllFileInfo(ctx context.Context, disks []StorageAPI, bucket, object, ve
 // shuffleDisksAndPartsMetadataByIndex this function should be always used by GetObjectNInfo()
 // and CompleteMultipartUpload code path, it is not meant to be used with PutObject,
 // NewMultipartUpload metadata shuffling.
+// 按FileInfo中的索引切片，按从小到大的顺序重新排列StorageAPI切片和元数据信息切片
+// 但如果硬盘异常数量大于或等于校验盘数量，则按FileInfo中的distribution重新计算StorageAPI切片和元数据信息切片的排列
 func shuffleDisksAndPartsMetadataByIndex(disks []StorageAPI, metaArr []FileInfo, fi FileInfo) (shuffledDisks []StorageAPI, shuffledPartsMetadata []FileInfo) {
 	shuffledDisks = make([]StorageAPI, len(disks))
 	shuffledPartsMetadata = make([]FileInfo, len(disks))
