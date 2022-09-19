@@ -447,12 +447,13 @@ func (er erasureObjects) getObjectFileInfo(ctx context.Context, bucket, object s
 	// 读取所有磁盘的下指定路径中的xl.meta文件.
 	metaArr, errs := readAllFileInfo(ctx, disks, bucket, object, opts.VersionID, readData)
 
-	// 获取读写冗余
+	// 获取读写仲裁
 	readQuorum, _, err := objectQuorumFromMeta(ctx, metaArr, errs, er.defaultParityCount)
 	if err != nil {
 		// objectQuorumFromMeta函数中只有在调用getLatestFileInfo函数时才会产生errErasureReadQuorum异常
 		// 原因大致是对象的所有part的有效元数据数量小于数据盘数量
 		if errors.Is(err, errErasureReadQuorum) && !strings.HasPrefix(bucket, minioMetaBucket) {
+			// 删除损坏的对象
 			_, derr := er.deleteIfDangling(ctx, bucket, object, metaArr, errs, nil, opts)
 			if derr != nil {
 				err = derr
@@ -463,6 +464,7 @@ func (er erasureObjects) getObjectFileInfo(ctx context.Context, bucket, object s
 
 	if reducedErr := reduceReadQuorumErrs(ctx, errs, objectOpIgnoredErrs, readQuorum); reducedErr != nil {
 		if errors.Is(reducedErr, errErasureReadQuorum) && !strings.HasPrefix(bucket, minioMetaBucket) {
+			// 删除损坏的对象
 			_, derr := er.deleteIfDangling(ctx, bucket, object, metaArr, errs, nil, opts)
 			if derr != nil {
 				err = derr
