@@ -1278,6 +1278,7 @@ func (s *xlStorage) ReadVersion(ctx context.Context, volume, path, versionID str
 		}
 	}
 
+	// 如果读取元数据文件有异常，且异常为文件未找到(errFileNotFound)，尝试读取旧版本的元数据文件。
 	if err != nil {
 		if err == errFileNotFound {
 			buf, dmTime, err = s.readAllData(ctx, volumeDir, pathJoin(filePath, xlStorageFormatFileV1))
@@ -1302,10 +1303,12 @@ func (s *xlStorage) ReadVersion(ctx context.Context, volume, path, versionID str
 		return fi, errFileNotFound
 	}
 
+	// 获取part元数据的信息，从字节切片转换为FileInfo结构体实例
 	fi, err = getFileInfo(buf, volume, path, versionID, readData)
 	if err != nil {
 		return fi, err
 	}
+	// 设置磁盘的最后更新时间
 	fi.DiskMTime = dmTime
 
 	if len(fi.Data) == 0 {
@@ -1313,6 +1316,7 @@ func (s *xlStorage) ReadVersion(ctx context.Context, volume, path, versionID str
 		defer metaDataPoolPut(buf)
 	}
 
+	// 读取元数据文件中的数据文件（inline数据）
 	if readData {
 		if len(fi.Data) > 0 || fi.Size == 0 {
 			if fi.InlineData() {
@@ -1359,6 +1363,14 @@ func (s *xlStorage) ReadVersion(ctx context.Context, volume, path, versionID str
 	return fi, nil
 }
 
+// 读取指定路径下的文件并返回该文件的字节切片、最后更新时间和错误信息。错误信息可能包含以下类型：
+//  1. errVolumeNotFound
+//  2. errFileNotFound
+//  3. errFileAccessDenied
+//  4. errFaultyDisk
+//  5. errTooManyOpenFiles
+//  6. errUnsupportedDisk
+//  7. errDiskFull
 func (s *xlStorage) readAllData(ctx context.Context, volumeDir string, filePath string) (buf []byte, dmTime time.Time, err error) {
 	if contextCanceled(ctx) {
 		return nil, time.Time{}, ctx.Err()

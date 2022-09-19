@@ -267,7 +267,7 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 
 	// Get start part index and offset.
 	// 根据起始偏移量计算出所在part的索引，以及所在part的偏移量。
-	// 如果是全量下载，part索引和所在part偏移量都是0
+	// 如果是全量下载，partIndex和所在part偏移量(partOffset)都是0
 	partIndex, partOffset, err := fi.ObjectToPartOffset(ctx, startOffset)
 	if err != nil {
 		return InvalidRange{startOffset, length, fi.Size}
@@ -300,26 +300,34 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 	// dataDir that has stale FileInfo{} to ensure that we fail appropriately
 	// during reads and expect the same dataDir everywhere.
 	dataDir := fi.DataDir
+	// 遍历part的编号，读取对每块磁盘上相同part编号的文件进行解码，将解码后大数据流写入response
 	for ; partIndex <= lastPartIndex; partIndex++ {
 		if length == totalBytesRead {
 			break
 		}
 
+		// 当前part的编号
 		partNumber := fi.Parts[partIndex].Number
 
 		// Save the current part name and size.
+		// 当前part的大小
+		// 在非multipart场景下，partSize实际就是对象的总大小
+		// 在multpart的场景下，partSize是对象分块的大小
 		partSize := fi.Parts[partIndex].Size
 
+		// 当前part的长度
 		partLength := partSize - partOffset
 		// partLength should be adjusted so that we don't write more data than what was requested.
 		if partLength > (length - totalBytesRead) {
 			partLength = length - totalBytesRead
 		}
 
+		// 返回分片文件的偏移量，实际为当前part在单个硬盘中占用空间大小
 		tillOffset := erasure.ShardFileOffset(partOffset, partLength, partSize)
 		// Get the checksums of the current part.
 		readers := make([]io.ReaderAt, len(onlineDisks))
 		prefer := make([]bool, len(onlineDisks))
+		// 创建各个硬盘上part编号为partNumber的part文件的reader
 		for index, disk := range onlineDisks {
 			if disk == OfflineDisk {
 				continue
@@ -336,6 +344,7 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 			prefer[index] = disk.Hostname() == ""
 		}
 
+		// 对part文件进行解码并写入writer
 		written, err := erasure.Decode(ctx, writer, readers, partOffset, partLength, partSize, prefer)
 		// Note: we should not be defer'ing the following closeBitrotReaders() call as
 		// we are inside a for loop i.e if we use defer, we would accumulate a lot of open files by the time
@@ -428,6 +437,8 @@ func (er erasureObjects) deleteIfDangling(ctx context.Context, bucket, object st
 	return m, err
 }
 
+// 获取对象信息
+// 下载对象的场合，readData为true
 func (er erasureObjects) getObjectFileInfo(ctx context.Context, bucket, object string, opts ObjectOptions, readData bool) (fi FileInfo, metaArr []FileInfo, onlineDisks []StorageAPI, err error) {
 	// 获取当前server pool中的所有磁盘
 	disks := er.getDisks()
@@ -462,6 +473,7 @@ func (er erasureObjects) getObjectFileInfo(ctx context.Context, bucket, object s
 
 	// List all online disks.
 	// 根据元数据信息返回一个只有在线磁盘的切片
+	// 非在线盘在切片中对应的值为nil
 	onlineDisks, modTime := listOnlineDisks(disks, metaArr, errs)
 
 	// Pick latest valid metadata.

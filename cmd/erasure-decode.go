@@ -20,7 +20,6 @@ package cmd
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -117,9 +116,11 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 		return newBuf, nil
 	}
 
+	// 创建一个类型为bool，缓冲为len(p.readers)的通道，正常情况下缓冲大小为所有在线盘数量
 	readTriggerCh := make(chan bool, len(p.readers))
 	defer close(readTriggerCh) // close the channel upon return
 
+	// 向通道中放入数据盘大小个数据
 	for i := 0; i < p.dataBlocks; i++ {
 		// Setup read triggers for p.dataBlocks number of reads so that it reads in parallel.
 		readTriggerCh <- true
@@ -139,6 +140,7 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 		if canDecode {
 			break
 		}
+		// readerIndex不超过readers的长度
 		if readerIndex == len(p.readers) {
 			break
 		}
@@ -250,10 +252,8 @@ func (e Erasure) Decode(ctx context.Context, writer io.Writer, readers []io.Read
 		}
 
 		var err error
+		// 将指定的part文件从各个硬盘读取到bufs中
 		bufs, err = reader.Read(bufs)
-		for i, sli := range bufs {
-			fmt.Printf("block: %d, bufs index: %d, len: %d, blockOffset: %d, blockLength: %d\n", block, i, len(sli), blockOffset, blockLength)
-		}
 
 		if len(bufs) > 0 {
 			// Set only if there are be enough data for reconstruction.
@@ -268,6 +268,7 @@ func (e Erasure) Decode(ctx context.Context, writer io.Writer, readers []io.Read
 			return -1, err
 		}
 
+		// 对传入的part切片进行编码
 		if err = e.DecodeDataBlocks(bufs); err != nil {
 			logger.LogIf(ctx, err)
 			return -1, err
