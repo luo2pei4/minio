@@ -47,11 +47,13 @@ func (b *streamingBitrotWriter) Write(p []byte) (int, error) {
 	b.h.Reset()
 	b.h.Write(p)
 	hashBytes := b.h.Sum(nil)
+	// 写入时先写入一段hash值，再写入数据
 	_, err := b.iow.Write(hashBytes)
 	if err != nil {
 		b.closeWithErr(err)
 		return 0, err
 	}
+	// 写入数据
 	n, err := b.iow.Write(p)
 	if err != nil {
 		b.closeWithErr(err)
