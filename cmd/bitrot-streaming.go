@@ -147,7 +147,9 @@ func (b *streamingBitrotReader) ReadAt(buf []byte, offset int64) (int, error) {
 		// Can never happen unless there are programmer bugs
 		return 0, errUnexpected
 	}
+	fmt.Printf("endpoint: %s, filePath: %s, currOffset: %d\n", b.disk.Endpoint(), b.filePath, b.currOffset)
 	if b.rc == nil {
+		fmt.Printf("endpoint: %s, filePath: %s, b.rc == nil\n", b.disk.Endpoint(), b.filePath)
 		// For the first ReadAt() call we need to open the stream for reading.
 		b.currOffset = offset
 		streamOffset := (offset/b.shardSize)*int64(b.h.Size()) + offset
@@ -170,16 +172,20 @@ func (b *streamingBitrotReader) ReadAt(buf []byte, offset int64) (int, error) {
 		return 0, errUnexpected
 	}
 	b.h.Reset()
+	// 保存到的文件中其实是校验数据夹杂实际数据，一段校验数据后紧接一段实际数据
+	// b.hashBytes就是用于读出校验数据的缓冲
 	_, err = io.ReadFull(b.rc, b.hashBytes)
 	if err != nil {
 		return 0, err
 	}
+	// 读出实际数据
 	_, err = io.ReadFull(b.rc, buf)
 	if err != nil {
 		return 0, err
 	}
 	b.h.Write(buf)
 
+	// 计算实际数据的hash值，于校验数据进行对比
 	if !bytes.Equal(b.h.Sum(nil), b.hashBytes) {
 		logger.LogIf(GlobalContext, fmt.Errorf("Disk: %s  -> %s/%s - content hash does not match - expected %s, got %s",
 			b.disk, b.volume, b.filePath, hex.EncodeToString(b.hashBytes), hex.EncodeToString(b.h.Sum(nil))))
