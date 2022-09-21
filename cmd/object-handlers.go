@@ -374,6 +374,7 @@ func (api objectAPIHandlers) getObjectHandler(ctx context.Context, objectAPI Obj
 	// Get request range.
 	var rs *HTTPRangeSpec
 	var rangeErr error
+	// 从请求头中获取range的值
 	rangeHeader := r.Header.Get(xhttp.Range)
 	if rangeHeader != "" {
 		// Both 'Range' and 'partNumber' cannot be specified at the same time
@@ -382,6 +383,7 @@ func (api objectAPIHandlers) getObjectHandler(ctx context.Context, objectAPI Obj
 			return
 		}
 
+		// 解析range字符串
 		rs, rangeErr = parseRequestRangeSpec(rangeHeader)
 		// Handle only errInvalidRange. Ignore other
 		// parse error and treat it as regular Get

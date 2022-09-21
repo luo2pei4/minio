@@ -105,11 +105,13 @@ func (h *HTTPRangeSpec) GetOffsetLength(resourceSize int64) (start, length int64
 // Parse a HTTP range header value into a HTTPRangeSpec
 func parseRequestRangeSpec(rangeString string) (hrange *HTTPRangeSpec, err error) {
 	// Return error if given range string doesn't start with byte range prefix.
+	// 字符串以"bytes="开头
 	if !strings.HasPrefix(rangeString, byteRangePrefix) {
 		return nil, fmt.Errorf("'%s' does not start with '%s'", rangeString, byteRangePrefix)
 	}
 
 	// Trim byte range prefix.
+	// 去掉开头的"bytes="字符串
 	byteRangeString := strings.TrimPrefix(rangeString, byteRangePrefix)
 
 	// Check if range string contains delimiter '-', else return error. eg. "bytes=8"
@@ -118,6 +120,7 @@ func parseRequestRangeSpec(rangeString string) (hrange *HTTPRangeSpec, err error
 		return nil, fmt.Errorf("'%s' does not have a valid range value", rangeString)
 	}
 
+	// 获取起始位置
 	offsetBeginString := byteRangeString[:sepIndex]
 	offsetBegin := int64(-1)
 	// Convert offsetBeginString only if its not empty.
@@ -131,6 +134,7 @@ func parseRequestRangeSpec(rangeString string) (hrange *HTTPRangeSpec, err error
 		}
 	}
 
+	// 获取结束位置
 	offsetEndString := byteRangeString[sepIndex+1:]
 	offsetEnd := int64(-1)
 	// Convert offsetEndString only if its not empty.
@@ -144,6 +148,7 @@ func parseRequestRangeSpec(rangeString string) (hrange *HTTPRangeSpec, err error
 		}
 	}
 
+	// 返回HTTPRangeSpec结构体的实例
 	switch {
 	case offsetBegin > -1 && offsetEnd > -1:
 		if offsetBegin > offsetEnd {
