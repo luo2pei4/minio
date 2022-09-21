@@ -692,6 +692,7 @@ func jsonSave(f interface {
 // ceilFrac takes a numerator and denominator representing a fraction
 // and returns its ceiling. If denominator is 0, it returns 0 instead
 // of crashing.
+// 整数除法，当被除数无法被除数整除时，返回整除结果加1
 func ceilFrac(numerator, denominator int64) (ceil int64) {
 	if denominator == 0 {
 		// do nothing on invalid input

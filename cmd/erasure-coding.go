@@ -120,6 +120,13 @@ func (e *Erasure) DecodeDataBlocks(data [][]byte) error {
 		// If all are zero, payload is 0 bytes.
 		return nil
 	}
+	// 实际调用reedSolomon结构体的reconstruct方法，该方法中对传入数据做了以下判断：
+	// 1. 检查所以长度不为0的二级分片，判断这些分片的长度是否一致
+	// 2. 按纠删set长度对传入的data进行遍历。该逻辑要求传入的data是按data数据在前，parity数据在的顺序排列
+	//   2.1. 当data[idx]不为0，numberPresent加1。numberPresent表示分片长度大于0的数量
+	//   2.2. 当data[idx]不为0，并且idx小于数据盘数量的时候，dataPresent加1。dataPresent表示有数据的数据盘数量
+	// 3. numberPresent等于纠删set长度（表示分片数据无丢失）或则dataPresent等于数据盘长度（表示数据盘都是完整的），这种情况无需做恢复处理，直接返回
+	// 4. 如果分片长度大于0的数量小于数据盘数量，返回分片太少的错误（已无法做恢复处理）。
 	return e.encoder().ReconstructData(data)
 }
 
@@ -134,7 +141,8 @@ func (e *Erasure) DecodeDataAndParityBlocks(ctx context.Context, data [][]byte) 
 }
 
 // ShardSize - returns actual shared size from erasure blockSize.
-// 计算了一个数据块（默认1MB）在一块数据盘上占用的大小
+// 计算数据处理块（默认1MB）的数据分片大小
+// 对象的读写都是按1MB为单位进行处理，而这1MB的数据又要均匀分布在每个硬盘上
 func (e *Erasure) ShardSize() int64 {
 	return ceilFrac(e.blockSize, int64(e.dataBlocks))
 }

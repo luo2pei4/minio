@@ -444,7 +444,7 @@ func (er erasureObjects) getObjectFileInfo(ctx context.Context, bucket, object s
 	disks := er.getDisks()
 
 	// Read metadata associated with the object from all disks.
-	// 读取所有磁盘的下指定路径中的xl.meta文件.
+	// 读取set所有磁盘的下指定路径中的xl.meta文件.
 	metaArr, errs := readAllFileInfo(ctx, disks, bucket, object, opts.VersionID, readData)
 
 	// 获取读写仲裁

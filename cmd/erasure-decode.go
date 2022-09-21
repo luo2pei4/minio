@@ -87,6 +87,9 @@ func (p *parallelReader) preferReaders(prefer []bool) {
 }
 
 // Returns if buf can be erasure decoded.
+// 判断buf的长度是否大于或等于数据盘数量
+// 1. 大于或等于数据盘数量的场合，表示可以进行解码处理
+// 2. 小于数据盘数量的场合，表示还不能进行解码处理
 func (p *parallelReader) canDecode(buf [][]byte) bool {
 	bufCount := 0
 	for _, b := range buf {
@@ -109,7 +112,10 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 	}
 	var newBufLK sync.RWMutex
 
+	// 偏移量加单个处理分片长度（一般为256KB）大于分片文件大小（对象在单个磁盘中保存的文件大小，part.X文件）
+	// 说明已经读取到最后一个分片处理单元，且最后这个处理单元的长度不为默认值
 	if p.offset+p.shardSize > p.shardFileSize {
+		// 重新计算最后一个处理单元的分片处理长度
 		p.shardSize = p.shardFileSize - p.offset
 	}
 	if p.shardSize == 0 {
@@ -121,6 +127,7 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 	defer close(readTriggerCh) // close the channel upon return
 
 	// 向通道中放入数据盘大小个数据
+	// 因为ShardSize是按dataBlocks数量进行切分的，所以只需要读取到dataBlocks个ShardSize的数据，就可以获得1MB的处理块大小
 	for i := 0; i < p.dataBlocks; i++ {
 		// Setup read triggers for p.dataBlocks number of reads so that it reads in parallel.
 		readTriggerCh <- true
@@ -134,6 +141,7 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 	// if readTrigger is false, it implies previous disk.ReadAt() was successful and there is no need
 	// to try reading the next disk.
 	for readTrigger := range readTriggerCh {
+		// 判断newBuf是否满足解码条件
 		newBufLK.RLock()
 		canDecode := p.canDecode(newBuf)
 		newBufLK.RUnlock()
@@ -165,6 +173,7 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 			// For the last shard, the shardsize might be less than previous shard sizes.
 			// Hence the following statement ensures that the buffer size is reset to the right size.
 			p.buf[bufIdx] = p.buf[bufIdx][:p.shardSize]
+			// 读取数据到p.buf[bufIdx]，p.offset只是用于和reader中currOffset进行比较
 			n, err := rr.ReadAt(p.buf[bufIdx], p.offset)
 			if err != nil {
 				if errors.Is(err, errFileNotFound) {
@@ -231,6 +240,7 @@ func (e Erasure) Decode(ctx context.Context, writer io.Writer, readers []io.Read
 
 	var bytesWritten int64
 	var bufs [][]byte
+	// 按1MB为读取单位对part.N文件进行读取
 	for block := startBlock; block <= endBlock; block++ {
 		var blockOffset, blockLength int64
 		switch {
