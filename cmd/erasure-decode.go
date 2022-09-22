@@ -215,6 +215,9 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 
 // Decode reads from readers, reconstructs data if needed and writes the data to the writer.
 // A set of preferred drives can be supplied. In that case they will be used and the data reconstructed.
+// offset: 当前part的读取偏移量
+// length: 当前part文件大小减去偏移量后的长度
+// totalLength: 当前part文件的大小
 func (e Erasure) Decode(ctx context.Context, writer io.Writer, readers []io.ReaderAt, offset, length, totalLength int64, prefer []bool) (written int64, derr error) {
 	if offset < 0 || length < 0 {
 		logger.LogIf(ctx, errInvalidArgument)
@@ -230,11 +233,13 @@ func (e Erasure) Decode(ctx context.Context, writer io.Writer, readers []io.Read
 	}
 
 	reader := newParallelReader(readers, e, offset, totalLength)
+	// preferReaders是一个优化处理，尽量用到当前节点的磁盘来读取数据。
 	if len(prefer) == len(readers) {
 		reader.preferReaders(prefer)
 	}
 
 	// blockSize默认为1MB
+	// 按1MB为读取单位，计算第一个读取单位索引和最后一个读取单位索引
 	startBlock := offset / e.blockSize
 	endBlock := (offset + length) / e.blockSize
 
@@ -244,15 +249,19 @@ func (e Erasure) Decode(ctx context.Context, writer io.Writer, readers []io.Read
 	for block := startBlock; block <= endBlock; block++ {
 		var blockOffset, blockLength int64
 		switch {
+		// 开始块等于结束块的场合，blockOffset等于传入的offset，blockLength等于传入的length
 		case startBlock == endBlock:
 			blockOffset = offset % e.blockSize
 			blockLength = length
+			// 第一个读取块的场合，blockOffset等于传入的offset，blockLength等于读取块长度减去传入的offset
 		case block == startBlock:
 			blockOffset = offset % e.blockSize
 			blockLength = e.blockSize - blockOffset
+			// 最后一个读取块的场合，blockOffset等于0，blockLength等于(offset + length) % e.blockSize
 		case block == endBlock:
 			blockOffset = 0
 			blockLength = (offset + length) % e.blockSize
+			// 中间的场合，blockOffset为0，blockLength为读取块的长度
 		default:
 			blockOffset = 0
 			blockLength = e.blockSize

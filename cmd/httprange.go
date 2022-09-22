@@ -81,6 +81,7 @@ func (h *HTTPRangeSpec) GetLength(resourceSize int64) (rangeLength int64, err er
 
 // GetOffsetLength computes the start offset and length of the range
 // given the size of the resource
+// 根据传入的rang值，返回读取开始位置(start)和读取步长(length)
 func (h *HTTPRangeSpec) GetOffsetLength(resourceSize int64) (start, length int64, err error) {
 	if h == nil {
 		// No range specified, implies whole object.

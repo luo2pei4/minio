@@ -248,6 +248,7 @@ func (er erasureObjects) GetObjectNInfo(ctx context.Context, bucket, object stri
 	return fn(pr, h, pipeCloser, nsUnlocker)
 }
 
+// 如果请求中指定了range，length是指定的长度；如果请求中没有指定range，length为整个对象的大小
 func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, object string, startOffset int64, length int64, writer io.Writer, fi FileInfo, metaArr []FileInfo, onlineDisks []StorageAPI) error {
 	// Reorder online disks based on erasure distribution order.
 	// Reorder parts metadata based on erasure distribution order.
@@ -266,7 +267,7 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 	}
 
 	// Get start part index and offset.
-	// 根据起始偏移量计算出所在part的索引，以及所在part的偏移量。
+	// 计算出起始位置startOffset所在part文件的索引，以及在该part中的偏移量。
 	// 如果是全量下载，partIndex和所在part偏移量(partOffset)都是0
 	partIndex, partOffset, err := fi.ObjectToPartOffset(ctx, startOffset)
 	if err != nil {
@@ -275,13 +276,14 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 
 	// Calculate endOffset according to length
 	// 全量下载的场合，endOffset为对象长度减1
+	// 通过startOffset和读取步长，计算出读取结束位置endOffset
 	endOffset := startOffset
 	if length > 0 {
 		endOffset += length - 1
 	}
 
 	// Get last part index to read given length.
-	// 根据endOffset获取最后一个part的索引
+	// 计算出读取结束位置endOffset所在part文件的索引，以及在该part中的偏移量。
 	lastPartIndex, _, err := fi.ObjectToPartOffset(ctx, endOffset)
 	if err != nil {
 		return InvalidRange{startOffset, length, fi.Size}
@@ -306,23 +308,24 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 			break
 		}
 
-		// 当前part的编号
+		// part编号
 		partNumber := fi.Parts[partIndex].Number
 
 		// Save the current part name and size.
 		// 当前part的大小
-		// 在非multipart场景下，partSize实际就是对象的总大小
-		// 在multpart的场景下，partSize是对象分块的大小
 		partSize := fi.Parts[partIndex].Size
 
-		// 当前part的长度
+		// 读取当前part的长度，part大小减去偏移量
+		// 只有第一个partIndex所在的part，读取长度可能和part大小不一样，其他都是一样的
+		// partOffset在每一次循环最后都会清零
 		partLength := partSize - partOffset
 		// partLength should be adjusted so that we don't write more data than what was requested.
 		if partLength > (length - totalBytesRead) {
 			partLength = length - totalBytesRead
 		}
 
-		// 返回分片文件的偏移量，实际为当前part在单个硬盘中占用空间大小
+		// 返回下一个偏移量
+		// 第一次循环的偏移量是partOffset，进入第二次循环后，偏移量为tillOffset
 		tillOffset := erasure.ShardFileOffset(partOffset, partLength, partSize)
 		// Get the checksums of the current part.
 		readers := make([]io.ReaderAt, len(onlineDisks))
