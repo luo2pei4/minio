@@ -261,6 +261,7 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 	}
 
 	// Reply back invalid range if the input offset and length fall out of range.
+	// 判断起始位置是否大于整个对象的大小，或者起始位置加读取长度是否大于整个对象的大小
 	if startOffset > fi.Size || startOffset+length > fi.Size {
 		logger.LogIf(ctx, InvalidRange{startOffset, length, fi.Size}, logger.Application)
 		return InvalidRange{startOffset, length, fi.Size}
@@ -276,7 +277,7 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 
 	// Calculate endOffset according to length
 	// 全量下载的场合，endOffset为对象长度减1
-	// 通过startOffset和读取步长，计算出读取结束位置endOffset
+	// 通过startOffset和读取步长，计算出整个对象读取结束位置endOffset
 	endOffset := startOffset
 	if length > 0 {
 		endOffset += length - 1
@@ -290,6 +291,7 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 	}
 
 	var totalBytesRead int64
+	// fi.Erasure.BlockSize 在写对象处理流程中设置为1MB（默认值），这也是进行纠删处理的处理单元。
 	erasure, err := NewErasure(ctx, fi.Erasure.DataBlocks, fi.Erasure.ParityBlocks, fi.Erasure.BlockSize)
 	if err != nil {
 		return toObjectErr(err, bucket, object)
@@ -312,7 +314,7 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 		partNumber := fi.Parts[partIndex].Number
 
 		// Save the current part name and size.
-		// 当前part的大小
+		// 当前part的大小（对象分块的大小，非part.N文件的大小）
 		partSize := fi.Parts[partIndex].Size
 
 		// 读取当前part的长度，part大小减去偏移量
@@ -324,7 +326,7 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 			partLength = length - totalBytesRead
 		}
 
-		// 返回下一个偏移量
+		// 返回单个分片文件的有效结束位置（分片文件不含校验数据）
 		// 第一次循环的偏移量是partOffset，进入第二次循环后，偏移量为tillOffset
 		tillOffset := erasure.ShardFileOffset(partOffset, partLength, partSize)
 		// Get the checksums of the current part.

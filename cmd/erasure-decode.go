@@ -31,10 +31,10 @@ import (
 type parallelReader struct {
 	readers       []io.ReaderAt
 	orgReaders    []io.ReaderAt
-	dataBlocks    int
-	offset        int64
-	shardSize     int64
-	shardFileSize int64
+	dataBlocks    int   // 数据盘数量
+	offset        int64 // 在对象的part数据块中的数据读取开始位置
+	shardSize     int64 // 单位处理数据块（默认1MB），被平均分割到单块数据盘上的大小（向上取整）
+	shardFileSize int64 // 对象的part数据块被平局分割到单块数据盘上的大小
 	buf           [][]byte
 	readerToBuf   []int
 }
@@ -215,9 +215,11 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 
 // Decode reads from readers, reconstructs data if needed and writes the data to the writer.
 // A set of preferred drives can be supplied. In that case they will be used and the data reconstructed.
-// offset: 当前part的读取偏移量
-// length: 当前part文件大小减去偏移量后的长度
-// totalLength: 当前part文件的大小
+//  offset: 在对象的单个分块中的数据读取开始位置
+//  length: 在对象的单个分块中的数据读取长度
+//  totalLength: 在对象的单个分块长度。单个分块长度是只对象被分为多个数据块时，其中一个数据块的长度。未分块的场合就是对象总大小
+//  另外再补充一个概念，对象分多少part和set中有多少块数据盘没有直接关系。
+//  单个分块(part)会根据数据盘数量进行平均分割，被分割的每一块数据写入一个对应的数据盘，并且具有相同的文件名：part.N
 func (e Erasure) Decode(ctx context.Context, writer io.Writer, readers []io.ReaderAt, offset, length, totalLength int64, prefer []bool) (written int64, derr error) {
 	if offset < 0 || length < 0 {
 		logger.LogIf(ctx, errInvalidArgument)
@@ -247,6 +249,8 @@ func (e Erasure) Decode(ctx context.Context, writer io.Writer, readers []io.Read
 	var bufs [][]byte
 	// 按1MB为读取单位对part.N文件进行读取
 	for block := startBlock; block <= endBlock; block++ {
+		// blockOffset: 当前数据处理块（默认1MB）的开始偏移量
+		// blockLength: 当前数据处理块的读取长度
 		var blockOffset, blockLength int64
 		switch {
 		// 开始块等于结束块的场合，blockOffset等于传入的offset，blockLength等于传入的length

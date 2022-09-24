@@ -40,6 +40,8 @@ func getDataBlockLen(enBlocks [][]byte, dataBlocks int) int {
 
 // Writes all the data blocks from encoded blocks until requested
 // outSize length. Provides a way to skip bytes until the offset.
+//  1. offset: 对当前数据处理块（默认1MB）的读取起始位置
+//  2. length: 对当前数据处理块（默认1MB）的读取长度
 func writeDataBlocks(ctx context.Context, dst io.Writer, enBlocks [][]byte, dataBlocks int, offset int64, length int64) (int64, error) {
 	// Offset and out size cannot be negative.
 	if offset < 0 || length < 0 {

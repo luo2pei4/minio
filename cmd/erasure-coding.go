@@ -148,7 +148,14 @@ func (e *Erasure) ShardSize() int64 {
 }
 
 // ShardFileSize - returns final erasure size from original size.
-// 根据对象大小计算一个对象切分到一个数据盘上实际占用的空间大小
+//  根据传入的part大小计算该part平均分割到单块数据盘上的大小，重点是平均分割到单块数据盘上。
+//  这里的part大小是指对象切分为多个part后单个part的大小。
+//  例：
+//    单Set12块盘，EC:2，上传对象为100MB，对象被分为5个part，单个part为20MB。有以下结论
+//    1. 数据盘数量为10块，传入的totalLength为20MB。
+//    2. 按纠删数据处理块大小为1MB计算，传入的20MB数据将被分成20次处理
+//    3. 传入的20MB数据将会被再次分为10分，保存在10个数据盘中，文件的名称为part.X
+//    4. 该方法返回的实际是20MB数据切分为10份的大小。另外每个磁盘上的part.X文件除了数据外，还包括了校验数据，所以文件实际大小比数据切分后的大小要大。
 func (e *Erasure) ShardFileSize(totalLength int64) int64 {
 	if totalLength == 0 {
 		return 0
@@ -156,7 +163,7 @@ func (e *Erasure) ShardFileSize(totalLength int64) int64 {
 	if totalLength == -1 {
 		return -1
 	}
-	// 获取数据块数量
+	// 获取纠删处理块的数量
 	numShards := totalLength / e.blockSize
 	// 获取最后一个数据块的实际大小
 	lastBlockSize := totalLength % e.blockSize
@@ -169,10 +176,18 @@ func (e *Erasure) ShardFileSize(totalLength int64) int64 {
 }
 
 // ShardFileOffset - returns the effective offset where erasure reading begins.
+// 返回单个分片文件的有效结束位置（分片文件不含校验数据）
+//  1. startOffset，起始偏移位置
+//  2. length，在对象单个part中的读取长度
+//  3. totalLength，单个part的大小。这个par的大小不是磁盘上part.X文件的大小，而是对象分成多个part场景下单个part的大小
+//  4. totalLength = startOffset + length
 func (e *Erasure) ShardFileOffset(startOffset, length, totalLength int64) int64 {
 	shardSize := e.ShardSize()
 	shardFileSize := e.ShardFileSize(totalLength)
+	// 起始位置加读取长度得到一个结束位置，表示从0位到这个结束为的长度
+	// 除以纠删数据处理块长度，表示到结束位位置，会被处理多少次。
 	endShard := (startOffset + length) / e.blockSize
+	// 处理次数乘以shardSize再加上shardSize的结果和shardFileSize做比较
 	tillOffset := endShard*shardSize + shardSize
 	if tillOffset > shardFileSize {
 		tillOffset = shardFileSize

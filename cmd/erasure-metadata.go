@@ -275,6 +275,10 @@ func (fi *FileInfo) AddObjectPart(partNumber int, partETag string, partSize int6
 }
 
 // ObjectToPartOffset - translate offset of an object to offset of its individual part.
+//  判断传入的offset所在的part和和所在part的偏移量
+//  例如一个对象有1000byte，用较小的数据说明，看起来比较简单，实际不能将这么小的对象切分成多个part。
+//  场景1：上传对象不分块，传入offset为110。此时整个只有一个part，所以partIndex为0，partOffset为110
+//  场景2：上传对象分成10块，假设每块大小为100byte，传入offset为110。所以传入的offset实际在在第二个part（partIndex为1），所在part的partOffset为10
 func (fi FileInfo) ObjectToPartOffset(ctx context.Context, offset int64) (partIndex int, partOffset int64, err error) {
 	if offset == 0 {
 		// Special case - if offset is 0, then partIndex and partOffset are always 0.

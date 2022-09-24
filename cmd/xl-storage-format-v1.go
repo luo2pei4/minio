@@ -130,7 +130,7 @@ const (
 type ObjectPartInfo struct {
 	ETag       string `json:"etag,omitempty"`
 	Number     int    `json:"number"`
-	Size       int64  `json:"size"`
+	Size       int64  `json:"size"` // 例如一个对象128MB，被分成10个块，Size就是单个块的大小。这个和每个磁盘中保存的part.X文件的大小不是一个概念
 	ActualSize int64  `json:"actualSize"`
 }
 
