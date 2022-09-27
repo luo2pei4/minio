@@ -827,10 +827,12 @@ func (er erasureObjects) purgeObjectDangling(ctx context.Context, bucket, object
 // Object is considered dangling/corrupted if any only
 // if total disks - a combination of corrupted and missing
 // files is lesser than number of data blocks.
+// 通过getObjectFileInfo方法调用该函数的时候，dataErrs传的是nil
 func isObjectDangling(metaArr []FileInfo, errs []error, dataErrs []error) (validMeta FileInfo, ok bool) {
 	// We can consider an object data not reliable
 	// when xl.meta is not found in read quorum disks.
 	// or when xl.meta is not readable in read quorum disks.
+	// 返回xl.meta文件未找到异常数量和xl.meta文件损坏（不可读）异常数量
 	danglingErrsCount := func(cerrs []error) (int, int) {
 		var (
 			notFoundCount  int
@@ -886,6 +888,7 @@ func isObjectDangling(metaArr []FileInfo, errs []error, dataErrs []error) (valid
 	}
 
 	// We have valid meta, now verify if we have enough files with parity blocks.
+	// 如果错误总数大于冗余盘数量，表示对象已经挂起
 	return validMeta, totalErrs > validMeta.Erasure.ParityBlocks
 }
 
