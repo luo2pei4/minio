@@ -62,11 +62,13 @@ var (
 )
 
 // IsAccessKeyValid - validate access key for right length.
+//  accessKey的长度大于等于3的场合返回true，否则返回false
 func IsAccessKeyValid(accessKey string) bool {
 	return len(accessKey) >= accessKeyMinLen
 }
 
 // IsSecretKeyValid - validate secret key for right length.
+//  secretKey的长度大于等于8的场合返回true，否则返回false
 func IsSecretKeyValid(secretKey string) bool {
 	return len(secretKey) >= secretKeyMinLen
 }
@@ -121,7 +123,10 @@ func (cred Credentials) String() string {
 }
 
 // IsExpired - returns whether Credential is expired or not.
+//  到期时间为0值或到期时间大于当前系统时间，返回false
+//  到期时间小于当前系统时间，返回true
 func (cred Credentials) IsExpired() bool {
+	// 到期时间为0值
 	if cred.Expiration.IsZero() || cred.Expiration.Equal(timeSentinel) {
 		return false
 	}
@@ -140,8 +145,11 @@ func (cred Credentials) IsServiceAccount() bool {
 }
 
 // IsValid - returns whether credential is valid or not.
+//  判断status, accesskey, secretkey和到期时间是否有效
+//  accesskey, secretkey只判断长度是否有效
 func (cred Credentials) IsValid() bool {
 	// Verify credentials if its enabled or not set.
+	// 状态不为off
 	if cred.Status == AccountOff {
 		return false
 	}

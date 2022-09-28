@@ -152,6 +152,8 @@ func checkKeyValid(r *http.Request, accessKey string) (auth.Credentials, bool, A
 	cred := globalActiveCred
 	if cred.AccessKey != accessKey {
 		// Check if the access key is part of users credentials.
+		// 连接用户不为admin用户时，从globalIAMSys全局变量中获取用户信息。
+		// 如果用户信息不存在的场合，将从磁盘中加载用户信息，如果磁盘超冗余的情况，将无法加载用户
 		ucred, ok := globalIAMSys.GetUser(r.Context(), accessKey)
 		if !ok {
 			// Credentials will be invalid but and disabled
