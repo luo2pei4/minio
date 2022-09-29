@@ -152,6 +152,7 @@ func (iamOS *IAMObjectStore) migrateUsersConfigToV1(ctx context.Context) error {
 			continue
 		}
 
+		// 创建用户信息
 		u := newUserIdentity(cred)
 		if err := iamOS.saveIAMConfig(ctx, u, identityPath); err != nil {
 			logger.LogIf(ctx, err)
@@ -203,8 +204,10 @@ func (iamOS *IAMObjectStore) migrateBackendFormat(ctx context.Context) error {
 	return iamOS.migrateToV1(ctx)
 }
 
+// 保存IAM配置信息
 func (iamOS *IAMObjectStore) saveIAMConfig(ctx context.Context, item interface{}, objPath string, opts ...options) error {
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
+	// 解析传入的对象，输出byte切片
 	data, err := json.Marshal(item)
 	if err != nil {
 		return err
@@ -217,6 +220,7 @@ func (iamOS *IAMObjectStore) saveIAMConfig(ctx context.Context, item interface{}
 			return err
 		}
 	}
+	// 调用保存配置文件共通函数
 	return saveConfig(ctx, iamOS.objAPI, objPath, data)
 }
 

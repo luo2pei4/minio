@@ -70,12 +70,19 @@ func deleteConfig(ctx context.Context, objAPI objectDeleter, configFile string) 
 	return err
 }
 
+// 调用PutObject方法保存配置文件，主要包括以下配置文件(后续解析到了新的内容再做补充)
+//  1. 桶元数据
+//  2. 复制
+//  3. 用户元数据（含策略，组信息）
+//  4. 磁盘使用量
 func saveConfig(ctx context.Context, store objectIO, configFile string, data []byte) error {
+	// 用传入的byte切片生成reader，生成的reader实例包含传入byte切片的hash值
 	hashReader, err := hash.NewReader(bytes.NewReader(data), int64(len(data)), "", getSHA256Hash(data), int64(len(data)))
 	if err != nil {
 		return err
 	}
 
+	// 调用PutObjet方法，上传对象
 	_, err = store.PutObject(ctx, minioMetaBucket, configFile, NewPutObjReader(hashReader), ObjectOptions{MaxParity: true})
 	return err
 }

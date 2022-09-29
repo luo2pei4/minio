@@ -260,6 +260,7 @@ func (sys *IAMSys) Init(ctx context.Context, objAPI ObjectLayer, etcdClient *etc
 		}
 
 		// Migrate IAM configuration, if necessary.
+		// 初始化的时候会通过doIAMConfigMigration方法在.minio.sys/config/iam/format.json路径下生成xl.meta文件
 		if err := sys.doIAMConfigMigration(retryCtx); err != nil {
 			txnLk.Unlock(lkctx.Cancel)
 			if configRetriableErrors(err) {
