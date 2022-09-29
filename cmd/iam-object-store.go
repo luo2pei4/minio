@@ -315,8 +315,10 @@ func (iamOS *IAMObjectStore) loadUser(ctx context.Context, user string, userType
 	return nil
 }
 
+// 根据用户类型加载用户信息到内存
 func (iamOS *IAMObjectStore) loadUsers(ctx context.Context, userType IAMUserType, m map[string]auth.Credentials) error {
 	var basePrefix string
+	// 根据用户类型，设置用户信息读取的路径
 	switch userType {
 	case svcUser:
 		basePrefix = iamConfigServiceAccountsPrefix
@@ -467,6 +469,7 @@ type itemOrErr struct {
 // prefix. If dirs is true, only directories are listed, otherwise
 // only objects are listed. All returned items have the pathPrefix
 // removed from their names.
+// 获取指定路径下的项目。例如，如果是普通用户路径/config/iam/users，实际就是读取该路径下所有用户的名称，并通过chan的方式返回。
 func listIAMConfigItems(ctx context.Context, objAPI ObjectLayer, pathPrefix string) <-chan itemOrErr {
 	ch := make(chan itemOrErr)
 

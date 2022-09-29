@@ -88,6 +88,8 @@ func getIAMFormatFilePath() string {
 	return iamConfigPrefix + SlashSeparator + iamFormatFile
 }
 
+// 获取用户元数据保存路径
+//  例：.minio.sys/config/iam/users/{username}/identity.json
 func getUserIdentityPath(user string, userType IAMUserType) string {
 	var basePath string
 	switch userType {
@@ -443,35 +445,42 @@ func (store *IAMStoreSys) LoadIAMCache(ctx context.Context) error {
 	setDefaultCannedPolicies(newCache.iamPolicyDocsMap)
 
 	if store.getUsersSysType() == MinIOUsersSysType {
+		// 将用户数据加载到iamCache对象的iamUsersMap目中
 		if err := store.loadUsers(ctx, regUser, newCache.iamUsersMap); err != nil {
 			return err
 		}
+		// 将策略数据加载到iamCache对象的iamGroupsMap目中
 		if err := store.loadGroups(ctx, newCache.iamGroupsMap); err != nil {
 			return err
 		}
 	}
 
 	// load polices mapped to users
+	// 将用户策略数据加载到iamCache对象的iamUserPolicyMap目中
 	if err := store.loadMappedPolicies(ctx, regUser, false, newCache.iamUserPolicyMap); err != nil {
 		return err
 	}
 
 	// load policies mapped to groups
+	// 将组策略数据加载到iamCache对象的iamGroupPolicyMap目中
 	if err := store.loadMappedPolicies(ctx, regUser, true, newCache.iamGroupPolicyMap); err != nil {
 		return err
 	}
 
 	// load service accounts
+	// 将service accounts数据加载到iamCache对象的iamUsersMap目中
 	if err := store.loadUsers(ctx, svcUser, newCache.iamUsersMap); err != nil {
 		return err
 	}
 
 	// load STS temp users
+	// 将STS临时用户数据加载到iamCache对象的iamUsersMap目中
 	if err := store.loadUsers(ctx, stsUser, newCache.iamUsersMap); err != nil {
 		return err
 	}
 
 	// load STS policy mappings
+	// 将STS临时用户策略数据加载到iamCache对象的iamUserPolicyMap目中
 	if err := store.loadMappedPolicies(ctx, stsUser, false, newCache.iamUserPolicyMap); err != nil {
 		return err
 	}

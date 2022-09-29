@@ -175,6 +175,7 @@ func isServerResolvable(endpoint Endpoint, timeout time.Duration) error {
 // time. additionally make sure to close all the disks used in this attempt.
 // 根据配置解析出来endpoint列表，获取列表中每个磁盘的format.json文件并校验format文件是否正确以及磁盘是否在仲裁内。
 // 如果没有获取format.json文件，则在服务首次启动的时候尝试创建该文件。另外确保在尝试创建format.json文件时磁盘没有被使用。
+// endpoints为单个pool中所有磁盘的endpoint
 // 这个函数的注释写得好！很清晰！
 func connectLoadInitFormats(verboseLogging bool, firstDisk bool, endpoints Endpoints, poolCount, setCount, setDriveCount int, deploymentID, distributionAlgo string) (storageDisks []StorageAPI, format *formatErasureV3, err error) {
 	// Initialize all storage disks
@@ -302,6 +303,7 @@ func connectLoadInitFormats(verboseLogging bool, firstDisk bool, endpoints Endpo
 }
 
 // Format disks before initialization of object layer.
+// 针对单个serverpool的所有磁盘进行格式化
 // 在初始化objectlayer接口前格式化磁盘，
 // 实际就是将配置文件指定的磁盘的相关元数据生成format.json文件并保存到各自的磁盘上
 // 传入参数如下：
