@@ -323,7 +323,7 @@ func (s *erasureSets) monitorAndConnectEndpoints(ctx context.Context, monitorInt
 	}
 }
 
-// GetLockers 传入set索引，通过copy方式返回指定set的locker切片
+// GetLockers 传入set索引，通过copy方式返回指定set的所保有的locker的切片
 func (s *erasureSets) GetLockers(setIndex int) func() ([]dsync.NetLocker, string) {
 	return func() ([]dsync.NetLocker, string) {
 		lockers := make([]dsync.NetLocker, len(s.erasureLockers[setIndex]))
@@ -362,6 +362,7 @@ func (s *erasureSets) GetDisks(setIndex int) func() []StorageAPI {
 const defaultMonitorConnectEndpointInterval = defaultMonitorNewDiskInterval + time.Second*5
 
 // Initialize new set of erasure coded sets.
+// endpoints 单个pool中所有磁盘的endpoint
 func newErasureSets(ctx context.Context, endpoints PoolEndpoints, storageDisks []StorageAPI, format *formatErasureV3, defaultParityCount, poolIdx int) (*erasureSets, error) {
 	setCount := len(format.Erasure.Sets)
 	setDriveCount := len(format.Erasure.Sets[0])
@@ -412,7 +413,8 @@ func newErasureSets(ctx context.Context, endpoints PoolEndpoints, storageDisks [
 		s.erasureDisks[i] = make([]StorageAPI, setDriveCount)
 	}
 
-	// erasureLockers是个临时变量，用于保存每个节点的locker实例
+	// erasureLockers是个临时变量，用于保存每个节点的locker实例，
+	// 注意是节点的locker实例, 因为key用的是URL的Host属性.
 	// endpoint.Host example "192.168.56.101:9000"
 	erasureLockers := map[string]dsync.NetLocker{}
 	for _, endpoint := range endpoints.Endpoints {
@@ -424,8 +426,11 @@ func newErasureSets(ctx context.Context, endpoints PoolEndpoints, storageDisks [
 		}
 	}
 
-	// 将erasureLockers临时变量中的locker添加到erasureSet的erasureLockers变量中
-	// set有跨节点的情况，下面的循环就是按set保存locker
+	// 通过setCount和setDriveCount两重循环，遍历单个pool中所有磁盘的endpoint
+	// 一个set需要保有相关节点的locker，
+	// 如果这个set中的所有磁盘都是当前节点的磁盘，则只需要保有当前节点的locker。
+	// 如果这个set中的部分磁盘是其他节点的磁盘，则需要保有所属节点的locker。
+	// 下面的处理就是将各个set所需要保有的locker存入到erasureSet的erasureLockers变量中
 	for i := 0; i < setCount; i++ {
 		lockerEpSet := set.NewStringSet()
 		for j := 0; j < setDriveCount; j++ {
@@ -618,10 +623,10 @@ func auditObjectErasureSet(ctx context.Context, object string, set *erasureObjec
 // NewNSLock - initialize a new namespace RWLocker instance.
 func (s *erasureSets) NewNSLock(bucket string, objects ...string) RWLocker {
 	// 1、初始化IAM服务时将进入if分支
+	// 2、获取对象元数据时进入if分支
 	if len(objects) == 1 {
-		// 1、初始化IAM服务时objects[0]为"config/iam.lock", bucket为“.minio.sys”
-		//    getHashedSet方法通过计算传入的字符串得到一个任意Object的索引，并返回索引指向的Object
-		//
+		// 1、初始化IAM服务时objects[0]为"config/iam.lock", bucket为“.minio.sys”，通过getHashedSet方法获取一个set
+		// 2、获取对象元数据时objects[0]为对象名称，通过getHashedSet方法获取一个set
 		return s.getHashedSet(objects[0]).NewNSLock(bucket, objects...)
 	}
 	return s.getHashedSet("").NewNSLock(bucket, objects...)
