@@ -155,6 +155,7 @@ func (er erasureObjects) GetObjectNInfo(ctx context.Context, bucket, object stri
 
 	// Acquire lock
 	if lockType != noLock {
+		// 创建一个对象的读写锁实例
 		lock := er.NewNSLock(bucket, object)
 		switch lockType {
 		case writeLock:

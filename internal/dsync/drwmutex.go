@@ -61,6 +61,7 @@ const drwMutexRefreshInterval = 10 * time.Second
 const drwMutexInfinite = 1<<63 - 1
 
 // A DRWMutex is a distributed mutual exclusion lock.
+//  DRWMutex是一个分布式的互斥锁
 type DRWMutex struct {
 	Names         []string
 	writeLocks    []string // Array of nodes that granted a write lock
@@ -86,6 +87,7 @@ func isLocked(uid string) bool {
 }
 
 // NewDRWMutex - initializes a new dsync RW mutex.
+//  创建DRWMutex对象并返回。DRWMutex是一个分布式的互斥锁
 func NewDRWMutex(clnt *Dsync, names ...string) *DRWMutex {
 	restClnts, _ := clnt.GetLockers()
 	sort.Strings(names)
