@@ -223,7 +223,9 @@ type localLockInstance struct {
 // NewNSLock - returns a lock instance for a given volume and
 // path. The returned lockInstance object encapsulates the nsLockMap,
 // volume, path and operation ID.
-//  返回读写锁对象。分布式模式下返回distLockInstance对象，非分布式模式下返回localLockInstance对象
+//  返回读写锁对象。
+//  分布式模式下返回distLockInstance对象指针，
+//  非分布式模式下返回localLockInstance对象指针
 func (n *nsLockMap) NewNSLock(lockers func() ([]dsync.NetLocker, string), volume string, paths ...string) RWLocker {
 	opsID := mustGetUUID()
 	if n.isDistErasure {

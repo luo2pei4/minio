@@ -158,6 +158,7 @@ const (
 // algorithm until either the lock is acquired successfully or more
 // time has elapsed than the timeout value.
 func (dm *DRWMutex) lockBlocking(ctx context.Context, lockLossCallback func(), id, source string, isReadLock bool, opts Options) (locked bool) {
+	// 获取当前set保有的所有locker
 	restClnts, _ := dm.clnt.GetLockers()
 
 	// Create lock array to capture the successful lockers

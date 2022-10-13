@@ -324,6 +324,8 @@ func (s *erasureSets) monitorAndConnectEndpoints(ctx context.Context, monitorInt
 }
 
 // GetLockers 传入set索引，通过copy方式返回指定set的所保有的locker的切片
+//  set跨几个节点就有几个locker，locker分local和dist两种。
+//  实际上是将set所保有的locker的指针拷贝到新的切片里面并返回该切片
 func (s *erasureSets) GetLockers(setIndex int) func() ([]dsync.NetLocker, string) {
 	return func() ([]dsync.NetLocker, string) {
 		lockers := make([]dsync.NetLocker, len(s.erasureLockers[setIndex]))
@@ -422,6 +424,7 @@ func newErasureSets(ctx context.Context, endpoints PoolEndpoints, storageDisks [
 			// newLockAPI函数根据endpoint中IsLocal属性的值是理化不同的locker对象
 			// IsLocal为true，返回localLocker实例的指针，实际返回的是globalLockServer
 			// IsLocal为false，调用newlockRESTClient函数，返回lockRESTClient实例的指针
+			// 注意，返回的是指针！！！！
 			erasureLockers[endpoint.Host] = newLockAPI(endpoint)
 		}
 	}
