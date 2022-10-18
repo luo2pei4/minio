@@ -149,9 +149,7 @@ func (b *streamingBitrotReader) ReadAt(buf []byte, offset int64) (int, error) {
 		// Can never happen unless there are programmer bugs
 		return 0, errUnexpected
 	}
-	fmt.Printf("endpoint: %s, filePath: %s, currOffset: %d\n", b.disk.Endpoint(), b.filePath, b.currOffset)
 	if b.rc == nil {
-		fmt.Printf("endpoint: %s, filePath: %s, b.rc == nil\n", b.disk.Endpoint(), b.filePath)
 		// For the first ReadAt() call we need to open the stream for reading.
 		b.currOffset = offset
 		streamOffset := (offset/b.shardSize)*int64(b.h.Size()) + offset
