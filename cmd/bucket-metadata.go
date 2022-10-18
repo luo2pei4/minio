@@ -102,14 +102,19 @@ func newBucketMetadata(name string) BucketMetadata {
 	return BucketMetadata{
 		Name:    name,
 		Created: UTCNow(),
+		// 通知配置
 		notificationConfig: &event.Config{
 			XMLNS: "http://s3.amazonaws.com/doc/2006-03-01/",
 		},
+		// 配额配置
 		quotaConfig: &madmin.BucketQuota{},
+		// 多版本配置
 		versioningConfig: &versioning.Versioning{
 			XMLNS: "http://s3.amazonaws.com/doc/2006-03-01/",
 		},
-		bucketTargetConfig:     &madmin.BucketTargets{},
+		// 目标桶配置
+		bucketTargetConfig: &madmin.BucketTargets{},
+		// 目标桶相关的元数据
 		bucketTargetConfigMeta: make(map[string]string),
 	}
 }
