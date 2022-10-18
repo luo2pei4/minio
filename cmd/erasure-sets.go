@@ -365,6 +365,7 @@ const defaultMonitorConnectEndpointInterval = defaultMonitorNewDiskInterval + ti
 
 // Initialize new set of erasure coded sets.
 // endpoints 单个pool中所有磁盘的endpoint
+// storageDisks 单个pool中所有磁盘的操作接口
 func newErasureSets(ctx context.Context, endpoints PoolEndpoints, storageDisks []StorageAPI, format *formatErasureV3, defaultParityCount, poolIdx int) (*erasureSets, error) {
 	setCount := len(format.Erasure.Sets)
 	setDriveCount := len(format.Erasure.Sets[0])
@@ -411,6 +412,8 @@ func newErasureSets(ctx context.Context, endpoints PoolEndpoints, storageDisks [
 
 	bpOld := bpool.NewBytePoolCap(m, blockSizeV1, blockSizeV1*2)
 
+	// 初始化当前pool下面每个set的磁盘操作接口。
+	// 磁盘操作接口初始化为零值，并且每个set中的磁盘操作接口数量为单set的磁盘数量
 	for i := 0; i < setCount; i++ {
 		s.erasureDisks[i] = make([]StorageAPI, setDriveCount)
 	}
@@ -457,6 +460,7 @@ func newErasureSets(ctx context.Context, endpoints PoolEndpoints, storageDisks [
 			// 传入的storageDisks参数中包含了单个pool中所有StorageAPI接口的实现(xlStorage)
 			var innerWg sync.WaitGroup
 			for j := 0; j < setDriveCount; j++ {
+				// 获取磁盘操作接口实例
 				disk := storageDisks[i*setDriveCount+j]
 				if disk == nil {
 					continue

@@ -347,6 +347,8 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 				checksumInfo.Algorithm, checksumInfo.Hash, erasure.ShardSize())
 
 			// Prefer local disks
+			// 其他节点的场合，向prefer切片中写入false，本机写入true
+			// 表示优先使用本节点的磁盘读取数据
 			prefer[index] = disk.Hostname() == ""
 		}
 
@@ -446,7 +448,7 @@ func (er erasureObjects) deleteIfDangling(ctx context.Context, bucket, object st
 // 获取对象信息
 // 下载对象的场合，readData为true
 func (er erasureObjects) getObjectFileInfo(ctx context.Context, bucket, object string, opts ObjectOptions, readData bool) (fi FileInfo, metaArr []FileInfo, onlineDisks []StorageAPI, err error) {
-	// 获取当前server pool中的所有磁盘
+	// 获取当前set中的所有磁盘磁盘操作接口（storageAPI）
 	disks := er.getDisks()
 
 	// Read metadata associated with the object from all disks.
@@ -954,6 +956,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 
 	// 根据对象大小计算一个对象切分到一个数据盘上实际占用的空间大小（后简称单盘文件大小）
 	// 这个计算主要用来判断是否将上传文件保存到xl.meta文件中还是单独写part.1文件
+	// ShardFileSize中做了向上取整
 	shardFileSize := erasure.ShardFileSize(data.Size())
 	// 创建io.writer切片用于写入数据
 	writers := make([]io.Writer, len(onlineDisks))
@@ -1082,6 +1085,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	// Update `xl.meta` content on each disks.
 	for index := range partsMetadata {
 		partsMetadata[index].Metadata = opts.UserDefined
+		// 设置对象的大小，这个就是指我们要上传的那个文件的大小
 		partsMetadata[index].Size = n
 		partsMetadata[index].ModTime = modTime
 	}
