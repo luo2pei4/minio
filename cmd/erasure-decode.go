@@ -34,7 +34,7 @@ type parallelReader struct {
 	dataBlocks    int   // 数据盘数量
 	offset        int64 // 在对象的part数据块中的数据读取开始位置
 	shardSize     int64 // 单位处理数据块（默认1MB），被平均分割到单块数据盘上的大小（向上取整）
-	shardFileSize int64 // 对象的part数据块被平局分割到单块数据盘上的大小
+	shardFileSize int64 // 对象的part数据块被平均分割到单块数据盘上的大小
 	buf           [][]byte
 	readerToBuf   []int
 }
@@ -59,6 +59,11 @@ func newParallelReader(readers []io.ReaderAt, e Erasure, offset, totalLength int
 
 // preferReaders can mark readers as preferred.
 // These will be chosen before others.
+//  对reader的切片进行遍历，将本地磁盘的reader提到切片的最靠前的位置。
+//  在调整reader位置的同时，用readerToBuf来记录reader在set中原来规定的位置。
+//  记录reader在set中原来规定的位置，是因每块磁盘在set中的位置是固定的，写入时按固定顺序来写入各个磁盘（具体是数据的分块读分片写逻辑）。
+//  读取数据的时候也要按磁盘的顺序来读取并拼接，才能返回争取的数据。
+//  如果按调整后的reader的顺序来读取再拼接数据，会造成数据错误
 func (p *parallelReader) preferReaders(prefer []bool) {
 	if len(prefer) != len(p.orgReaders) {
 		return
@@ -140,6 +145,7 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 	// if readTrigger is true, it implies next disk.ReadAt() should be tried
 	// if readTrigger is false, it implies previous disk.ReadAt() was successful and there is no need
 	// to try reading the next disk.
+	//  按preferReaders方法排序后的顺序来遍历reader
 	for readTrigger := range readTriggerCh {
 		// 判断newBuf是否满足解码条件
 		newBufLK.RLock()
@@ -164,6 +170,7 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 				readTriggerCh <- true
 				return
 			}
+			// 获取这个reader在set中所规定的位置
 			bufIdx := p.readerToBuf[i]
 			if p.buf[bufIdx] == nil {
 				// Reading first time on this disk, hence the buffer needs to be allocated.
@@ -297,6 +304,8 @@ func (e Erasure) Decode(ctx context.Context, writer io.Writer, readers []io.Read
 			return -1, err
 		}
 
+		// 虽然在写入数据的时候数据分片有补零的情况，但是在读取的时候，blockOffset, blockLength是按对象真实大小计算出来的值，
+		// 在writeDataBlocks函数中，根据blockOffset, blockLength两个参数从传入的bufs中读取数据时，实际不会读取补的零
 		n, err := writeDataBlocks(ctx, writer, bufs, e.dataBlocks, blockOffset, blockLength)
 		if err != nil {
 			return -1, err

@@ -167,10 +167,10 @@ func (e *Erasure) ShardFileSize(totalLength int64) int64 {
 	numShards := totalLength / e.blockSize
 	// 获取最后一个数据块的实际大小
 	lastBlockSize := totalLength % e.blockSize
-	// 获取最后一个数据块在一块数据盘上占用大小
+	// 获取最后一个数据块在一块数据盘上占用大小，做了向上取整处理。
 	lastShardSize := ceilFrac(lastBlockSize, int64(e.dataBlocks))
 	// 返回一块数据盘上的占用大小
-	// e.ShardSize()计算了一个数据块（默认1MB）在一块数据盘上占用的大小
+	// e.ShardSize()计算了一个数据块（默认1MB）在一块数据盘上占用的大小，做了向上取整
 	// 返回一个对象切分到一个数据盘上实际占用的空间大小
 	return numShards*e.ShardSize() + lastShardSize
 }
