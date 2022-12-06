@@ -179,6 +179,7 @@ func listOnlineDisks(disks []StorageAPI, partsMetadata []FileInfo, errs []error)
 // Returns the latest updated FileInfo files and error in case of failure.
 func getLatestFileInfo(ctx context.Context, partsMetadata []FileInfo, errs []error) (FileInfo, error) {
 	// There should be atleast half correct entries, if not return failure
+	// 传入的读仲裁数为set磁盘数的一半
 	reducedErr := reduceReadQuorumErrs(ctx, errs, objectOpIgnoredErrs, len(partsMetadata)/2)
 	if reducedErr != nil {
 		return FileInfo{}, reducedErr

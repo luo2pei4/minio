@@ -33,8 +33,11 @@ import (
 // golang's map orders keys. This doesn't affect correctness as long as quorum
 // value is greater than or equal to simple majority, since none of the equally
 // maximal values would occur quorum or more number of times.
+//  除了传入的被忽略错误，记录各种错误类型的个数，还包括nil的个数
+//  遍历每种错误（含nil）的数量，返回数量最多的错误（有可能是nil）
 func reduceErrs(errs []error, ignoredErrs []error) (maxCount int, maxErr error) {
 	errorCounts := make(map[error]int)
+	// 除了传入的被忽略错误，记录各种错误类型的个数，还包括nil的个数
 	for _, err := range errs {
 		if IsErrIgnored(err, ignoredErrs...) {
 			continue
@@ -47,6 +50,7 @@ func reduceErrs(errs []error, ignoredErrs []error) (maxCount int, maxErr error) 
 		errorCounts[err]++
 	}
 
+	// 遍历每种错误（含nil）的数量，返回数量最多的错误（有可能是nil）
 	max := 0
 	for err, count := range errorCounts {
 		switch {
@@ -68,9 +72,11 @@ func reduceErrs(errs []error, ignoredErrs []error) (maxCount int, maxErr error) 
 // quorum number that can be read or write quorum depending on usage.
 func reduceQuorumErrs(ctx context.Context, errs []error, ignoredErrs []error, quorum int, quorumErr error) error {
 	maxCount, maxErr := reduceErrs(errs, ignoredErrs)
+	// 如果某种错误（或nil）的数量大于或等于传入的仲裁数量，则返回改错误（或nil）
 	if maxCount >= quorum {
 		return maxErr
 	}
+	// 如果错误（或nil）的数量小于传入的仲裁数量，则返回传入的默认仲裁错误
 	return quorumErr
 }
 
@@ -136,13 +142,15 @@ func readAllFileInfo(ctx context.Context, disks []StorageAPI, bucket, object, ve
 			if disks[index] == nil {
 				return errDiskNotFound
 			}
+			// 读取对象的xl.meta文件
 			metadataArray[index], err = disks[index].ReadVersion(ctx, bucket, object, versionID, readData)
 			if err != nil {
+				// 如果返回的不是以下错误信息，则将具体的错误信息输出到日志
 				if !IsErr(err, []error{
-					errFileNotFound,
-					errVolumeNotFound,
-					errFileVersionNotFound,
-					errDiskNotFound,
+					errFileNotFound,        // 文件未找到
+					errVolumeNotFound,      // 桶未找到
+					errFileVersionNotFound, // 文件版本未找到
+					errDiskNotFound,        // 磁盘未找到
 				}...) {
 					logger.LogOnceIf(ctx, fmt.Errorf("Drive %s, path (%s/%s) returned an error (%w)",
 						disks[index], bucket, object, err),

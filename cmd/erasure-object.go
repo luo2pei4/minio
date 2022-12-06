@@ -1161,6 +1161,7 @@ func (er erasureObjects) DeleteObjects(ctx context.Context, bucket string, objec
 
 	storageDisks := er.getDisks()
 
+	// 所有对象的读仲裁都设置为set盘数的二分之一加一
 	for i := range objects {
 		// Assume (N/2 + 1) quorums for all objects
 		// this is a theoretical assumption such that

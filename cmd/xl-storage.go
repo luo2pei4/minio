@@ -385,10 +385,12 @@ func (s *xlStorage) readMetadataWithDMTime(ctx context.Context, itemPath string)
 		return nil, time.Time{}, ctx.Err()
 	}
 
+	// 检查xl.meta的完整路径长度是否大于255
 	if err := checkPathLength(itemPath); err != nil {
 		return nil, time.Time{}, err
 	}
 
+	// 通过调用os.OpenFile函数，读取xl.meta文件
 	f, err := OpenFile(itemPath, readMode, 0)
 	if err != nil {
 		return nil, time.Time{}, err
@@ -405,7 +407,7 @@ func (s *xlStorage) readMetadataWithDMTime(ctx context.Context, itemPath string)
 			Err:  syscall.EISDIR,
 		}
 	}
-	// 读取xl.meta文件
+	// 对返回的xl.meta文件字节切片进行校验并读取有效的元数据信息
 	buf, err := readXLMetaNoData(f, stat.Size())
 	return buf, stat.ModTime().UTC(), err
 }
@@ -1263,12 +1265,15 @@ func (s *xlStorage) ReadVersion(ctx context.Context, volume, path, versionID str
 
 	var buf []byte
 	var dmTime time.Time
+	// 读取指定路径下的xl.meta文件
 	if readData {
-		// 读取指定路径下的xl.meta文件
+		// readData为true的场合，会读取xl.meta中所有的数据，包括inline数据
 		buf, dmTime, err = s.readAllData(ctx, volumeDir, pathJoin(filePath, xlStorageFormatFile))
 	} else {
+		// readData为false的场合，只读对象相关的元数据
 		buf, dmTime, err = s.readMetadataWithDMTime(ctx, pathJoin(filePath, xlStorageFormatFile))
 		if err != nil {
+			// 如果返回的错误是file does not exist，尝试访问桶的目录，如果继续返回file does not exist异常，直接返回桶未找到异常
 			if osIsNotExist(err) {
 				if aerr := Access(volumeDir); aerr != nil && osIsNotExist(aerr) {
 					return fi, errVolumeNotFound

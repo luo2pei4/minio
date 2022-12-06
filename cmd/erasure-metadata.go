@@ -420,17 +420,17 @@ func writeUniqueFileInfo(ctx context.Context, disks []StorageAPI, bucket, prefix
 // Returns per object readQuorum and writeQuorum
 // readQuorum is the min required disks to read data.
 // writeQuorum is the min required disks to write data.
-// 根据传入的part切片和error对象切片，返回对象的读写仲裁数量
-// 如果对上传对象的最后一次操作为删除操作，读仲裁为传入part切片长度的一半，写仲裁为读仲裁数量加1
+// 根据传入的对象元数据切片和错误信息切片，返回对象的读写仲裁数量
+// 如果对上传对象的最后一次操作为删除操作，读仲裁为传入对象元数据切片长度的一半，写仲裁为读仲裁数量加1
 // 如果对上传对象的最后一次操作不是删除操作，根据以下步骤来计算
 //  1. 通过元数据中的存储类型来获取冗余盘数量
 //  2. 元数据中有记录EC降级的场合，从元数据记录中获取冗余盘数量，覆盖步骤1的结果
-//  3. 从元数据记录中获取数据盘的数量，获取结果为0的场合，用传入part切片长度减去冗余盘数量
+//  3. 从元数据记录中获取数据盘的数量，获取结果为0的场合，用传入元数据切片长度减去冗余盘数量
 //  4. 用步骤1或2获取的数据盘数量作为读仲裁
 //  5. 如果上述步骤中获取的冗余盘数量和数据盘数量相等，写仲裁为数据盘数量加1，否则写仲裁为数据盘数量
 func objectQuorumFromMeta(ctx context.Context, partsMetaData []FileInfo, errs []error, defaultParityCount int) (objectReadQuorum, objectWriteQuorum int, err error) {
 	// get the latest updated Metadata and a count of all the latest updated FileInfo(s)
-	// 从传入的分片元数据切片中获取modtime最近的分片元数据
+	// 从传入的元数据切片中获取modtime最近的分片元数据
 	latestFileInfo, err := getLatestFileInfo(ctx, partsMetaData, errs)
 	if err != nil {
 		return 0, 0, err
@@ -467,7 +467,7 @@ func objectQuorumFromMeta(ctx context.Context, partsMetaData []FileInfo, errs []
 		dataBlocks = len(partsMetaData) - parityBlocks
 	}
 
-	// 计算些仲裁的数量
+	// 计算写仲裁的数量
 	writeQuorum := dataBlocks
 	if dataBlocks == parityBlocks {
 		writeQuorum++

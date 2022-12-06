@@ -85,9 +85,11 @@ func (f FileInfoVersions) Size() (size int64) {
 // The above means that any added/deleted fields are incompatible.
 type FileInfoVersions struct {
 	// Name of the volume.
+	// 桶名称
 	Volume string `msg:"v,omitempty"`
 
 	// Name of the file.
+	// 对象名称
 	Name string `msg:"n,omitempty"`
 
 	// Represents the latest mod time of the
