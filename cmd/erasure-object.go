@@ -233,6 +233,7 @@ func (er erasureObjects) GetObjectNInfo(ctx context.Context, bucket, object stri
 	}
 	unlockOnDefer = false
 
+	// 创建用管道连接的writer和reader，从磁盘中读取数据后写入writer，通过管道发送给reader
 	pr, pw := xioutil.WaitPipe()
 	// 启动一个协程，读取所有磁盘上的part文件并写入传入的pw
 	go func() {
@@ -331,18 +332,22 @@ func (er erasureObjects) getObjectWithFileInfo(ctx context.Context, bucket, obje
 		// 第一次循环的偏移量是partOffset，进入第二次循环后，偏移量为tillOffset
 		tillOffset := erasure.ShardFileOffset(partOffset, partLength, partSize)
 		// Get the checksums of the current part.
+		// 创建与set硬盘数量一致切片
 		readers := make([]io.ReaderAt, len(onlineDisks))
 		prefer := make([]bool, len(onlineDisks))
-		// 创建各个硬盘上part编号为partNumber的part文件的reader
+		// 遍历硬盘切片，创建各个硬盘上part编号为partNumber的part文件的reader
 		for index, disk := range onlineDisks {
+			// 检查磁盘是否在线
 			if disk == OfflineDisk {
 				continue
 			}
+			// 检查指定对象的元数据在不同磁盘上是否有效
 			if !metaArr[index].IsValid() {
 				continue
 			}
 			checksumInfo := metaArr[index].Erasure.GetChecksumInfo(partNumber)
 			partPath := pathJoin(object, dataDir, fmt.Sprintf("part.%d", partNumber))
+			// 对在线并且对象元数据有效的磁盘创建reader并放入readers切片，用于并发读取指定的part文件
 			readers[index] = newBitrotReader(disk, metaArr[index].Data, bucket, partPath, tillOffset,
 				checksumInfo.Algorithm, checksumInfo.Hash, erasure.ShardSize())
 

@@ -132,7 +132,7 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 	defer close(readTriggerCh) // close the channel upon return
 
 	// 向通道中放入数据盘大小个数据
-	// 因为ShardSize是按dataBlocks数量进行切分的，所以只需要读取到dataBlocks个ShardSize的数据，就可以获得1MB的处理块大小
+	// 因为ShardSize是按dataBlocks（数据盘）数量进行切分的，所以只需要读取到dataBlocks个ShardSize的数据，就可以获得1MB的处理块大小
 	for i := 0; i < p.dataBlocks; i++ {
 		// Setup read triggers for p.dataBlocks number of reads so that it reads in parallel.
 		readTriggerCh <- true
@@ -145,7 +145,8 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 	// if readTrigger is true, it implies next disk.ReadAt() should be tried
 	// if readTrigger is false, it implies previous disk.ReadAt() was successful and there is no need
 	// to try reading the next disk.
-	//  按preferReaders方法排序后的顺序来遍历reader
+	// 按preferReaders方法排序后的顺序来遍历reader
+	// 先开启和数据盘数量一致的协程并发读取，如果其中某些reader为nil，则再读取下一块盘。通道名用trigger的意义就是在此。
 	for readTrigger := range readTriggerCh {
 		// 判断newBuf是否满足解码条件
 		newBufLK.RLock()
@@ -191,6 +192,10 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 
 				// This will be communicated upstream.
 				p.orgReaders[bufIdx] = nil
+				// 此处对reader设置为nil，在外层(er erasureObjects) getObjectWithFileInfo方法中，将根据这个reader把磁盘的状态设置为离线
+				// 具体是在外层遍历part文件中，当读完一个part文件后，会对readers进行遍历并设置为对应的磁盘为offline
+				// 此处有坑，当每个磁盘上都删除一个part文件，这样理论上会将每个磁盘设置为离线。
+				// 但实际是当设置离线磁盘的数量超过校验盘数量时，读取处理将会强制停止，使客户端下载文件失败。
 				p.readers[i] = nil
 
 				// Since ReadAt returned error, trigger another read.
@@ -222,6 +227,7 @@ func (p *parallelReader) Read(dst [][]byte) ([][]byte, error) {
 
 // Decode reads from readers, reconstructs data if needed and writes the data to the writer.
 // A set of preferred drives can be supplied. In that case they will be used and the data reconstructed.
+//  对所有磁盘上的同名part文件进行读取和编码
 //  offset: 在对象的单个分块中的数据读取开始位置
 //  length: 在对象的单个分块中的数据读取长度
 //  totalLength: 在对象的单个分块长度。单个分块长度是只对象被分为多个数据块时，其中一个数据块的长度。未分块的场合就是对象总大小
@@ -253,8 +259,9 @@ func (e Erasure) Decode(ctx context.Context, writer io.Writer, readers []io.Read
 	endBlock := (offset + length) / e.blockSize
 
 	var bytesWritten int64
+	// bufs为二维切片，bufs[]存放的是从各个磁盘上读取的同名part文件的数据
 	var bufs [][]byte
-	// 按1MB为读取单位对part.N文件进行读取
+	// 按1MB为读取单位对part.N文件进行读取，读取完成后进行编码并写入到writer中
 	for block := startBlock; block <= endBlock; block++ {
 		// blockOffset: 当前数据处理块（默认1MB）的开始偏移量
 		// blockLength: 当前数据处理块的读取长度
