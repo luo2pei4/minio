@@ -92,6 +92,8 @@ func newStreamingBitrotWriterBuffer(w io.Writer, algo BitrotAlgorithm, shardSize
 }
 
 // Returns streaming bitrot writer implementation.
+//  length: 单块磁盘上单个part文件的长度，该长度一般都经过了向上取整处理
+//  shardSize: 每次写入数据的长度
 func newStreamingBitrotWriter(disk StorageAPI, volume, filePath string, length int64, algo BitrotAlgorithm, shardSize int64) io.Writer {
 	r, w := io.Pipe()
 	h := algo.New()
@@ -101,9 +103,13 @@ func newStreamingBitrotWriter(disk StorageAPI, volume, filePath string, length i
 	go func() {
 		totalFileSize := int64(-1) // For compressed objects length will be unknown (represented by length=-1)
 		if length != -1 {
+			// 用单个part文件的长度除以单次写入数据的长度，得到需要进行比特位计算的次数
+			// 需要进行比特位计算的次数乘以单次比特位校验字节长度，得到比特位校验字节的总长度
 			bitrotSumsTotalSize := ceilFrac(length, shardSize) * int64(h.Size()) // Size used for storing bitrot checksums.
+			// 得到单块磁盘上的单个part文件实际长度（含比特校验位）
 			totalFileSize = bitrotSumsTotalSize + length
 		}
+		// 根据指定大小创建文件
 		r.CloseWithError(disk.CreateFile(context.TODO(), volume, filePath, totalFileSize, r))
 		bw.canClose.Done()
 	}()

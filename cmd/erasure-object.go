@@ -1033,6 +1033,7 @@ func (er erasureObjects) putObject(ctx context.Context, bucket string, object st
 	// 写入对象时先写到下列路径下：
 	// /{moutpoint}/.minio.sys/tmp/{uuid1}/{uuid2}/part.1
 	// 传入的writers切片中，每个writer对应了一块具体的磁盘
+	// buffer最大容量就1MB，因为上面有个判断，当buffer长度大于1MB时，强制设置为1MB。也就是说每次最多从数据源读取1MB的数据
 	n, erasureErr := erasure.Encode(ctx, toEncode, writers, buffer, writeQuorum)
 	closeBitrotWriters(writers)
 	if erasureErr != nil {

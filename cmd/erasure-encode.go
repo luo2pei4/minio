@@ -83,7 +83,7 @@ func (e *Erasure) Encode(ctx context.Context, src io.Reader, writers []io.Writer
 
 	for {
 		var blocks [][]byte
-		// 读取对象到传入的buffer中
+		// 读取1MB对象数据到传入的buffer中
 		n, err := io.ReadFull(src, buf)
 		if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 			logger.LogIf(ctx, err)
@@ -103,6 +103,7 @@ func (e *Erasure) Encode(ctx context.Context, src io.Reader, writers []io.Writer
 			return 0, err
 		}
 
+		// 并行写入数据，写入数据时要作hash计算
 		if err = writer.Write(ctx, blocks); err != nil {
 			logger.LogIf(ctx, err)
 			return 0, err
