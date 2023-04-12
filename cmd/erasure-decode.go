@@ -292,6 +292,8 @@ func (e Erasure) Decode(ctx context.Context, writer io.Writer, readers []io.Read
 		// 将指定的part文件从各个硬盘读取到bufs中
 		bufs, err = reader.Read(bufs)
 
+		// 当无法对读取数据进行解码时，上面的Read方法返回的bufs为nil，同时返回读仲裁不足的错误
+		// 当bufs长度大于0时，说明数据是可以解码的，只是读取的时候可能发生了文件无法读取或文件错误的异常
 		if len(bufs) > 0 {
 			// Set only if there are be enough data for reconstruction.
 			// and only for expected errors, also set once.
