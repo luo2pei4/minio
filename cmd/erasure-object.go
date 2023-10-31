@@ -778,12 +778,13 @@ func (er erasureObjects) PutObject(ctx context.Context, bucket string, object st
 
 // putObject wrapper for erasureObjects PutObject
 // 将对象上传写入当前set的磁盘上,大致思路如下
-//  1、每个set中的挂载点（一个挂载点对应一块磁盘）编号是顺序排列的（服务启动时根据启动配置进行处理）
-//  2、上传对象时，用对象名称计算出一个新的索引
-//  3、用新的索引对挂载点进行重新排列，生成一个新的挂载点数列
-//  4、对象数据进行分片和纠删编码后按数据分片在前，纠删编码在后的顺序排列
-//  5、写入数据时遍历步骤3的数列，按数列的索引将步骤4中对应索引的分片写入磁盘
-//  6、写入完成后对比写入成功的分片数量和写仲裁数量，小于写仲裁数量的场合写入失败，大于或等于的场合继续后续rename处理
+//
+//	1、每个set中的挂载点（一个挂载点对应一块磁盘）编号是顺序排列的（服务启动时根据启动配置进行处理）
+//	2、上传对象时，用对象名称计算出一个新的索引
+//	3、用新的索引对挂载点进行重新排列，生成一个新的挂载点数列
+//	4、对象数据进行分片和纠删编码后按数据分片在前，纠删编码在后的顺序排列
+//	5、写入数据时遍历步骤3的数列，按数列的索引将步骤4中对应索引的分片写入磁盘
+//	6、写入完成后对比写入成功的分片数量和写仲裁数量，小于写仲裁数量的场合写入失败，大于或等于的场合继续后续rename处理
 func (er erasureObjects) putObject(ctx context.Context, bucket string, object string, r *PutObjReader, opts ObjectOptions) (objInfo ObjectInfo, err error) {
 	data := r.Reader
 
@@ -1687,6 +1688,8 @@ func (er erasureObjects) GetObjectTags(ctx context.Context, bucket, object strin
 }
 
 // TransitionObject - transition object content to target tier.
+//
+//	迁移对象
 func (er erasureObjects) TransitionObject(ctx context.Context, bucket, object string, opts ObjectOptions) error {
 	tgtClient, err := globalTierConfigMgr.getDriver(opts.Transition.Tier)
 	if err != nil {

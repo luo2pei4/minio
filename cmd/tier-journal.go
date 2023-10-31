@@ -67,10 +67,12 @@ func newTierDiskJournal() *tierDiskJournal {
 // buffered channel for new journal entries. It also initializes the on-disk
 // journal only to process existing journal entries made from previous versions.
 func initTierDeletionJournal(ctx context.Context) (*tierJournal, error) {
+	// 初始化tierJournal实例，返回后该实例的指针赋值给全局变量globalTierJournal
 	j := &tierJournal{
-		tierMemJournal:  newTierMemJoural(1000),
+		tierMemJournal:  newTierMemJoural(1000), // 初始化缓冲为1000的chan
 		tierDiskJournal: newTierDiskJournal(),
 	}
+	// 获取当前节点所有用于minio的硬盘的endpoint并遍历
 	for _, diskPath := range globalEndpoints.LocalDisksPaths() {
 		j.diskPath = diskPath
 		if err := os.MkdirAll(filepath.Dir(j.JournalPath()), os.FileMode(0o700)); err != nil {
@@ -95,6 +97,9 @@ func initTierDeletionJournal(ctx context.Context) (*tierJournal, error) {
 // rotate rotates the journal. If a read-only journal already exists it does
 // nothing. Otherwise renames the active journal to a read-only journal and
 // opens a new active journal.
+//
+//	执行完该方法后，会将原来的deletion-journal.bin文件改名为deletion-journal.ro.bin
+//	再重新创将一个deletion-journal.bin文件
 func (jd *tierDiskJournal) rotate() error {
 	// Do nothing if a read-only journal file already exists.
 	if _, err := os.Stat(jd.ReadOnlyPath()); err == nil {
@@ -171,6 +176,7 @@ func deleteObjectFromRemoteTier(ctx context.Context, objName, rvID, tierName str
 	return nil
 }
 
+// 每隔30分钟做一次远端对象删除处理
 func (jd *tierDiskJournal) deletePending(ctx context.Context) {
 	ticker := time.NewTicker(30 * time.Minute)
 	defer ticker.Stop()
@@ -209,6 +215,9 @@ func (jd *tierDiskJournal) addEntry(je jentry) error {
 
 // Close closes the active journal and renames it to read-only for pending
 // deletes processing. Note: calling Close on a closed journal is a no-op.
+//
+//	将原来deletion-journal.bin文件改名为deletion-journal.ro.bin
+//	关闭原有对deletion-journal.bin文件的引用
 func (jd *tierDiskJournal) Close() error {
 	jd.Lock()
 	defer jd.Unlock()
@@ -245,6 +254,8 @@ func (jd *tierDiskJournal) Close() error {
 
 // Open opens a new active journal. Note: calling Open on an opened journal is a
 // no-op.
+//
+//	打开.minio.sys/ilm/deletion-journal.bin文件，并写入version信息
 func (jd *tierDiskJournal) Open() error {
 	jd.Lock()
 	defer jd.Unlock()
