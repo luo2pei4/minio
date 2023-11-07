@@ -220,6 +220,7 @@ var (
 	// registered listeners
 	globalConsoleSys *HTTPConsoleLoggerSys
 
+	// 按pool进行分组，保存每个pool中的所有endpoint
 	globalEndpoints EndpointServerPools
 
 	// The name of this local node, fetched from arguments

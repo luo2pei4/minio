@@ -74,6 +74,7 @@ func newErasureServerPools(ctx context.Context, endpointServerPools EndpointServ
 
 	var localDrives []StorageAPI
 	local := endpointServerPools.FirstLocal()
+	// 按pool进行遍历，ep中保存的是单个pool的所有endpoint
 	for i, ep := range endpointServerPools {
 
 		// If storage class is not set during startup, default values are used
