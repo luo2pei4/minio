@@ -234,6 +234,7 @@ func (sts *stsAPIHandlers) AssumeRole(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// 从http的请求中获取临时用户有效时间
 	duration, err := openid.GetDefaultExpiration(r.Form.Get(stsDurationSeconds))
 	if err != nil {
 		writeSTSErrorResponse(ctx, w, true, ErrSTSInvalidParameterValue, err)
@@ -241,7 +242,7 @@ func (sts *stsAPIHandlers) AssumeRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m := map[string]interface{}{
-		expClaim:    UTCNow().Add(duration).Unix(),
+		expClaim:    UTCNow().Add(duration).Unix(), // 设置临时用户的过期时间
 		parentClaim: user.AccessKey,
 	}
 
@@ -259,6 +260,7 @@ func (sts *stsAPIHandlers) AssumeRole(w http.ResponseWriter, r *http.Request) {
 
 	secret := globalActiveCred.SecretKey
 	// 在这个方法中获取了SessionToken
+	// 同时生成了临时用户的accesskey和secretkey
 	cred, err := auth.GetNewCredentialsWithMetadata(m, secret)
 	if err != nil {
 		writeSTSErrorResponse(ctx, w, true, ErrSTSInternalError, err)
@@ -270,6 +272,7 @@ func (sts *stsAPIHandlers) AssumeRole(w http.ResponseWriter, r *http.Request) {
 	cred.ParentUser = user.AccessKey
 
 	// Set the newly generated credentials.
+	// 保存临时用户信息
 	if err = globalIAMSys.SetTempUser(ctx, cred.AccessKey, cred, ""); err != nil {
 		writeSTSErrorResponse(ctx, w, true, ErrSTSInternalError, err)
 		return
@@ -297,6 +300,7 @@ func (sts *stsAPIHandlers) AssumeRole(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	// 设置请求ID，并将临时用户信息（包含token）返回给调用方
 	assumeRoleResponse.ResponseMetadata.RequestID = w.Header().Get(xhttp.AmzRequestID)
 	writeSuccessResponseXML(w, encodeResponse(assumeRoleResponse))
 }
@@ -555,7 +559,8 @@ func (sts *stsAPIHandlers) AssumeRoleWithSSO(w http.ResponseWriter, r *http.Requ
 // Connect-compatible identity provider.
 //
 // Eg:-
-//    $ curl https://minio:9000/?Action=AssumeRoleWithWebIdentity&WebIdentityToken=<jwt>
+//
+//	$ curl https://minio:9000/?Action=AssumeRoleWithWebIdentity&WebIdentityToken=<jwt>
 func (sts *stsAPIHandlers) AssumeRoleWithWebIdentity(w http.ResponseWriter, r *http.Request) {
 	sts.AssumeRoleWithSSO(w, r)
 }
@@ -564,7 +569,8 @@ func (sts *stsAPIHandlers) AssumeRoleWithWebIdentity(w http.ResponseWriter, r *h
 // OAuth2.0 client credential grants.
 //
 // Eg:-
-//    $ curl https://minio:9000/?Action=AssumeRoleWithClientGrants&Token=<jwt>
+//
+//	$ curl https://minio:9000/?Action=AssumeRoleWithClientGrants&Token=<jwt>
 func (sts *stsAPIHandlers) AssumeRoleWithClientGrants(w http.ResponseWriter, r *http.Request) {
 	sts.AssumeRoleWithSSO(w, r)
 }
