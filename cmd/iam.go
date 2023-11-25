@@ -182,6 +182,10 @@ func (sys *IAMSys) Initialized() bool {
 }
 
 // Load - loads all credentials, policies and policy mappings.
+//
+//	加载所有鉴权相关的数据到iam subsystem
+//	该方法会在初期启动iam subsystem时调用
+//	另外在一个watch协程中每隔5分钟调用一次
 func (sys *IAMSys) Load(ctx context.Context) error {
 	err := sys.store.LoadIAMCache(ctx)
 	if err != nil {
@@ -673,6 +677,8 @@ func (sys *IAMSys) ListUsers() (map[string]madmin.UserInfo, error) {
 }
 
 // IsTempUser - returns if given key is a temporary user.
+//
+//	通过用户名称获取用户的鉴权信息，如果信息中包含token，并且过期时间不为空或零值，则判断为临时用户
 func (sys *IAMSys) IsTempUser(name string) (bool, string, error) {
 	if !sys.Initialized() {
 		return false, "", errServerNotInitialized

@@ -89,7 +89,8 @@ func getIAMFormatFilePath() string {
 }
 
 // 获取用户元数据保存路径
-//  例：.minio.sys/config/iam/users/{username}/identity.json
+//
+//	例：.minio.sys/config/iam/users/{username}/identity.json
 func getUserIdentityPath(user string, userType IAMUserType) string {
 	var basePath string
 	switch userType {
@@ -431,6 +432,7 @@ func setDefaultCannedPolicies(policies map[string]PolicyDoc) {
 // 加载IAMCache数据，包括用户数据，权限数据
 func (store *IAMStoreSys) LoadIAMCache(ctx context.Context) error {
 	// 初始化iamCache结构体
+	// 采用替换store.IAMStorageAPI实例的指针，而不是直接对原有实例中的数据项进行修改的方式。
 	newCache := newIamCache()
 
 	// 返回iamCache的指针
