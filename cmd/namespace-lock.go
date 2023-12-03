@@ -64,6 +64,7 @@ func (l LockContext) Cancel() {
 
 // newNSLock - return a new name space lock map.
 // 返回nsLockMap结构体实例的指针
+// 如果是分布式锁，不实例nsLockMap结构体中的lockMap数据项，直接返回
 func newNSLock(isDistErasure bool) *nsLockMap {
 	nsMutex := nsLockMap{
 		isDistErasure: isDistErasure,
@@ -223,9 +224,10 @@ type localLockInstance struct {
 // NewNSLock - returns a lock instance for a given volume and
 // path. The returned lockInstance object encapsulates the nsLockMap,
 // volume, path and operation ID.
-//  返回读写锁对象。
-//  分布式模式下返回distLockInstance对象指针，
-//  非分布式模式下返回localLockInstance对象指针
+//
+//	返回读写锁对象。
+//	分布式模式下返回distLockInstance对象指针，
+//	非分布式模式下返回localLockInstance对象指针
 func (n *nsLockMap) NewNSLock(lockers func() ([]dsync.NetLocker, string), volume string, paths ...string) RWLocker {
 	opsID := mustGetUUID()
 	if n.isDistErasure {
