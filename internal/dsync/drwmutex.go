@@ -171,15 +171,19 @@ func (dm *DRWMutex) lockBlocking(ctx context.Context, lockLossCallback func(), i
 	defer cancel()
 
 	// Tolerance is not set, defaults to half of the locker clients.
+	// 初始容忍数量等于二分之一locker的数量
 	tolerance := len(restClnts) / 2
 
 	// Quorum is effectively = total clients subtracted with tolerance limit
+	// 仲裁数量 = locker数量 - 容忍数量
+	// 初始情况下，仲裁数量也等于二分之一locker数量
 	quorum := len(restClnts) - tolerance
 	if !isReadLock {
 		// In situations for write locks, as a special case
 		// to avoid split brains we make sure to acquire
 		// quorum + 1 when tolerance is exactly half of the
 		// total locker clients.
+		// 非读锁的情况下，如果仲裁数量和容忍数量一致，则仲裁数量要加1
 		if quorum == tolerance {
 			quorum++
 		}
@@ -187,6 +191,7 @@ func (dm *DRWMutex) lockBlocking(ctx context.Context, lockLossCallback func(), i
 
 	log("lockBlocking %s/%s for %#v: lockType readLock(%t), additional opts: %#v, quorum: %d, tolerance: %d, lockClients: %d\n", id, source, dm.Names, isReadLock, opts, quorum, tolerance, len(restClnts))
 
+	// 最终容忍失败数量 = 锁的数量 - 仲裁数量
 	tolerance = len(restClnts) - quorum
 
 	for {
@@ -370,6 +375,7 @@ func lock(ctx context.Context, ds *Dsync, locks *[]string, id, source string, is
 	}
 
 	// 获取当前set的所有locker，包括localLocker和lockRESTClient
+	// owner实际是当前节点的globalLocalNodeName
 	restClnts, owner := ds.GetLockers()
 
 	// Create buffered channel of size equal to total number of nodes.
@@ -377,11 +383,11 @@ func lock(ctx context.Context, ds *Dsync, locks *[]string, id, source string, is
 	var wg sync.WaitGroup
 
 	args := LockArgs{
-		Owner:     owner,
-		UID:       id,
-		Resources: names,
-		Source:    source,
-		Quorum:    quorum,
+		Owner:     owner,  // 当前节点的globalLocalNodeName
+		UID:       id,     // id是调用NewNSLock方法时生成的UUID
+		Resources: names,  // 对象名称
+		Source:    source, // [filename:lineNum:funcName()]
+		Quorum:    quorum, // 仲裁数，读锁的场合是set硬盘数的一半，写锁的场合是set硬盘数的一半加1
 	}
 
 	// Combined timeout for the lock attempt.
@@ -411,6 +417,7 @@ func lock(ctx context.Context, ds *Dsync, locks *[]string, id, source string, is
 					log("dsync: Unable to call Lock failed with %s for %#v at %s\n", err, args, c)
 				}
 			}
+			// 加锁成功的场合，设置UID，标识加锁成功
 			if locked {
 				g.lockUID = args.UID
 			}
@@ -430,10 +437,12 @@ func lock(ctx context.Context, ds *Dsync, locks *[]string, id, source string, is
 	for ; i < len(restClnts); i++ { // Loop until we acquired all locks
 		select {
 		case grant := <-ch:
+			// 通过判断UID长度是否大于0来判断是否加锁成功
 			if grant.isLocked() {
 				// Mark that this node has acquired the lock
 				(*locks)[grant.index] = grant.lockUID
 			} else {
+				// 当加锁失败的计数大于容忍数量时，直接退出这个for循环
 				locksFailed++
 				if locksFailed > tolerance {
 					// We know that we are not going to get the lock anymore,
@@ -442,6 +451,7 @@ func lock(ctx context.Context, ds *Dsync, locks *[]string, id, source string, is
 				}
 			}
 		case <-ctx.Done():
+			// 超时场景下，也要判断加锁失败的计数大于容忍数量，直接退出这个for循环
 			// Capture timedout locks as failed or took too long
 			locksFailed++
 			if locksFailed > tolerance {
@@ -456,16 +466,20 @@ func lock(ctx context.Context, ds *Dsync, locks *[]string, id, source string, is
 		}
 	}
 
+	// 当lock成功的数量大于等于仲裁数量，并且lock失败的数量小于等于容量数量
 	quorumLocked := checkQuorumLocked(locks, quorum) && locksFailed <= tolerance
 	if !quorumLocked {
 		log("dsync: Unable to acquire lock in quorum %#v\n", args)
 		// Release all acquired locks without quorum.
+		// 整体加锁失败的场合，只释放加锁成功的锁
 		if !releaseAll(ds, tolerance, owner, locks, isReadLock, restClnts, names...) {
 			log("Unable to release acquired locks, these locks will expire automatically %#v\n", args)
 		}
 	}
 
 	// We may have some unused results in ch, release them async.
+	// 因超时导致整体加锁失败的情况下，部分锁加的比较慢但仍然可能成功
+	// 此时需要将这些锁都释放掉，此处采取非同步方式来释放这些锁。
 	go func() {
 		wg.Wait()
 		close(ch)

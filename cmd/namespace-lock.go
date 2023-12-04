@@ -190,6 +190,9 @@ func (di *distLockInstance) Unlock(cancel context.CancelFunc) {
 
 // RLock - block until read lock is taken or timeout has occurred.
 func (di *distLockInstance) GetRLock(ctx context.Context, timeout *dynamicTimeout) (LockContext, error) {
+	// 通过runtime.Caller函数获取调用GetRLock方法的父函数（或方法）的文件名称，所在行数和方法（或函数）名称，并按下列格式拼装成字符串
+	// runtime.Caller函数未能返回正确的文件名和行数时，文件名用<unknown>，行数用0代替
+	// [filename:lineNum:funcName()]
 	lockSource := getSource(2)
 	start := UTCNow()
 

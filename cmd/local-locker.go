@@ -185,7 +185,9 @@ func (l *localLocker) RLock(ctx context.Context, args dsync.LockArgs) (reply boo
 		TimeLastRefresh: UTCNow(),
 		Quorum:          args.Quorum,
 	}
+	// 判断传入的对象名称是否已经加了锁
 	if lri, ok := l.lockMap[resource]; ok {
+		// 如果对象已经加锁，判断是否为写锁，如果不是写锁，则为这个对象追加一个读锁
 		if reply = !isWriteLock(lri); reply {
 			// Unless there is a write lock
 			l.lockMap[resource] = append(l.lockMap[resource], lrInfo)
@@ -193,10 +195,13 @@ func (l *localLocker) RLock(ctx context.Context, args dsync.LockArgs) (reply boo
 		}
 	} else {
 		// No locks held on the given name, so claim (first) read lock
+		// 如果传入对象没有加锁，则直接追加一个读锁
 		l.lockMap[resource] = []lockRequesterInfo{lrInfo}
 		l.lockUID[formatUUID(args.UID, 0)] = resource
 		reply = true
 	}
+	// 已经加了写锁的场合，返回加锁失败
+	// 成功追加读锁或第一次加锁的场合，返回加锁成功
 	return reply, nil
 }
 
