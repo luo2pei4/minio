@@ -69,11 +69,16 @@ const (
 // - Check if a bucket has an entry in etcd backend
 // -- If no, make an entry
 // -- If yes, check if the entry matches local IP check if we
-//    need to update the entry then proceed to update
+//
+//	need to update the entry then proceed to update
+//
 // -- If yes, check if the IP of entry matches local IP.
-//    This means entry is for this instance.
+//
+//	This means entry is for this instance.
+//
 // -- If IP of the entry doesn't match, this means entry is
-//    for another instance. Log an error to console.
+//
+//	for another instance. Log an error to console.
 func initFederatorBackend(buckets []BucketInfo, objLayer ObjectLayer) {
 	if len(buckets) == 0 {
 		return
@@ -229,7 +234,6 @@ func (api objectAPIHandlers) GetBucketLocationHandler(w http.ResponseWriter, r *
 // using the Initiate Multipart Upload request, but has not yet been
 // completed or aborted. This operation returns at most 1,000 multipart
 // uploads in the response.
-//
 func (api objectAPIHandlers) ListMultipartUploadsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := newContext(r, w, "ListMultipartUploads")
 
@@ -715,7 +719,8 @@ func (api objectAPIHandlers) PutBucketHandler(w http.ResponseWriter, r *http.Req
 		objectLockEnabled = v == "true"
 	}
 
-	if s3Error := checkRequestAuthType(ctx, r, policy.CreateBucketAction, bucket, ""); s3Error != ErrNone {
+	cred, _, s3Error := checkRequestAuthTypeCredential(ctx, r, policy.CreateBucketAction, bucket, "")
+	if s3Error != ErrNone {
 		writeErrorResponse(ctx, w, errorCodes.ToAPIErr(s3Error), r.URL)
 		return
 	}
@@ -735,8 +740,10 @@ func (api objectAPIHandlers) PutBucketHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	opts := BucketOptions{
-		Location:    location,
-		LockEnabled: objectLockEnabled,
+		Creator:       cred.AccessKey,
+		ParentCreator: cred.ParentUser,
+		Location:      location,
+		LockEnabled:   objectLockEnabled,
 	}
 
 	if globalDNSConfig != nil {

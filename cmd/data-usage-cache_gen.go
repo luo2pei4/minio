@@ -554,6 +554,7 @@ func (z *dataUsageCacheInfo) EncodeMsg(en *msgp.Writer) (err error) {
 	// omitempty: check for empty values
 	zb0001Len := uint32(5)
 	var zb0001Mask uint8 /* 5 bits */
+	_ = zb0001Mask
 	if z.BloomFilter == nil {
 		zb0001Len--
 		zb0001Mask |= 0x10
@@ -627,6 +628,7 @@ func (z *dataUsageCacheInfo) MarshalMsg(b []byte) (o []byte, err error) {
 	// omitempty: check for empty values
 	zb0001Len := uint32(5)
 	var zb0001Mask uint8 /* 5 bits */
+	_ = zb0001Mask
 	if z.BloomFilter == nil {
 		zb0001Len--
 		zb0001Mask |= 0x10
@@ -1555,6 +1557,7 @@ func (z *dataUsageEntry) EncodeMsg(en *msgp.Writer) (err error) {
 	// omitempty: check for empty values
 	zb0001Len := uint32(8)
 	var zb0001Mask uint8 /* 8 bits */
+	_ = zb0001Mask
 	if z.ReplicationStats == nil {
 		zb0001Len--
 		zb0001Mask |= 0x20
@@ -1685,6 +1688,7 @@ func (z *dataUsageEntry) MarshalMsg(b []byte) (o []byte, err error) {
 	// omitempty: check for empty values
 	zb0001Len := uint32(8)
 	var zb0001Mask uint8 /* 8 bits */
+	_ = zb0001Mask
 	if z.ReplicationStats == nil {
 		zb0001Len--
 		zb0001Mask |= 0x20
@@ -2677,6 +2681,7 @@ func (z *replicationAllStats) EncodeMsg(en *msgp.Writer) (err error) {
 	// omitempty: check for empty values
 	zb0001Len := uint32(2)
 	var zb0001Mask uint8 /* 2 bits */
+	_ = zb0001Mask
 	if z.Targets == nil {
 		zb0001Len--
 		zb0001Mask |= 0x1
@@ -2738,6 +2743,7 @@ func (z *replicationAllStats) MarshalMsg(b []byte) (o []byte, err error) {
 	// omitempty: check for empty values
 	zb0001Len := uint32(2)
 	var zb0001Mask uint8 /* 2 bits */
+	_ = zb0001Mask
 	if z.Targets == nil {
 		zb0001Len--
 		zb0001Mask |= 0x1

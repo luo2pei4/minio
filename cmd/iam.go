@@ -38,6 +38,7 @@ import (
 	"github.com/minio/minio/internal/auth"
 	"github.com/minio/minio/internal/color"
 	"github.com/minio/minio/internal/logger"
+	"github.com/minio/pkg/bucket/policy"
 	iampolicy "github.com/minio/pkg/iam/policy"
 	etcd "go.etcd.io/etcd/client/v3"
 )
@@ -1575,13 +1576,30 @@ func (sys *IAMSys) IsAllowed(args iampolicy.Args) bool {
 		return true
 	}
 
+	checkBucketPolicyAllowed := func(args iampolicy.Args, name string) bool {
+		if policy.Action(args.Action) == policy.CreateBucketAction {
+			return true
+		}
+		if len(args.BucketName) != 0 {
+			return globalPolicySys.IsAllowed(policy.Args{
+				Action:          policy.Action(args.Action),
+				AccountName:     name,
+				BucketName:      args.BucketName,
+				ObjectName:      args.ObjectName,
+				ConditionValues: args.ConditionValues,
+				IsOwner:         name == globalActiveCred.AccessKey,
+			})
+		}
+		return false
+	}
+
 	// If the credential is temporary, perform STS related checks.
 	ok, parentUser, err := sys.IsTempUser(args.AccountName)
 	if err != nil {
 		return false
 	}
 	if ok {
-		return sys.IsAllowedSTS(args, parentUser)
+		return sys.IsAllowedSTS(args, parentUser) && checkBucketPolicyAllowed(args, parentUser)
 	}
 
 	// If the credential is for a service account, perform related check
@@ -1590,7 +1608,7 @@ func (sys *IAMSys) IsAllowed(args iampolicy.Args) bool {
 		return false
 	}
 	if ok {
-		return sys.IsAllowedServiceAccount(args, parentUser)
+		return sys.IsAllowedServiceAccount(args, parentUser) && checkBucketPolicyAllowed(args, parentUser)
 	}
 
 	// Continue with the assumption of a regular user
@@ -1605,7 +1623,7 @@ func (sys *IAMSys) IsAllowed(args iampolicy.Args) bool {
 	}
 
 	// Policies were found, evaluate all of them.
-	return sys.GetCombinedPolicy(policies...).IsAllowed(args)
+	return sys.GetCombinedPolicy(policies...).IsAllowed(args) && checkBucketPolicyAllowed(args, args.AccountName)
 }
 
 // EnableLDAPSys - enable ldap system users type.

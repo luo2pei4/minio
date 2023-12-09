@@ -94,7 +94,9 @@ type TransitionOptions struct {
 type BucketOptions struct {
 	Location          string
 	LockEnabled       bool
+	Creator           string
 	VersioningEnabled bool
+	ParentCreator     string
 }
 
 // DeleteBucketOptions provides options for DeleteBucket calls.

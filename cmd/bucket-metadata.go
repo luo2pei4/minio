@@ -45,6 +45,47 @@ import (
 	"github.com/minio/sio"
 )
 
+var bucketPrivatePolicy = `{"Version":"2012-10-17","Statement":[]}`
+var defaultBucketPolicy = `{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": [
+                    "*"
+                ]
+            },
+            "Action": [
+                "s3:ListBucket",
+                "s3:ListBucketMultipartUploads",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": [
+                "arn:aws:s3:::%s"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": [
+                    "%s"
+                ]
+            },
+            "Action": [
+                "s3:PutObject",
+                "s3:AbortMultipartUpload",
+                "s3:DeleteObject",
+                "s3:GetObject",
+                "s3:ListMultipartUploadParts"
+            ],
+            "Resource": [
+                "arn:aws:s3:::%s/*"
+            ]
+        }
+    ]
+}`
+
 const (
 	legacyBucketObjectLockEnabledConfigFile = "object-lock-enabled.json"
 	legacyBucketObjectLockEnabledConfig     = `{"x-amz-bucket-object-lock-enabled":true}`
@@ -68,6 +109,9 @@ var (
 // bucketMetadataVersion can be used to track a rolling upgrade of a field.
 type BucketMetadata struct {
 	Name                        string
+	ParentCreator               string
+	Creator                     string
+	IsPublic                    bool
 	Created                     time.Time
 	LockEnabled                 bool // legacy not used anymore.
 	PolicyConfigJSON            []byte

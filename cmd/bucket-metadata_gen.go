@@ -30,6 +30,24 @@ func (z *BucketMetadata) DecodeMsg(dc *msgp.Reader) (err error) {
 				err = msgp.WrapError(err, "Name")
 				return
 			}
+		case "ParentCreator":
+			z.ParentCreator, err = dc.ReadString()
+			if err != nil {
+				err = msgp.WrapError(err, "ParentCreator")
+				return
+			}
+		case "Creator":
+			z.Creator, err = dc.ReadString()
+			if err != nil {
+				err = msgp.WrapError(err, "Creator")
+				return
+			}
+		case "IsPublic":
+			z.IsPublic, err = dc.ReadBool()
+			if err != nil {
+				err = msgp.WrapError(err, "IsPublic")
+				return
+			}
 		case "Created":
 			z.Created, err = dc.ReadTime()
 			if err != nil {
@@ -121,15 +139,45 @@ func (z *BucketMetadata) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *BucketMetadata) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 14
+	// map header, size 17
 	// write "Name"
-	err = en.Append(0x8e, 0xa4, 0x4e, 0x61, 0x6d, 0x65)
+	err = en.Append(0xde, 0x0, 0x11, 0xa4, 0x4e, 0x61, 0x6d, 0x65)
 	if err != nil {
 		return
 	}
 	err = en.WriteString(z.Name)
 	if err != nil {
 		err = msgp.WrapError(err, "Name")
+		return
+	}
+	// write "ParentCreator"
+	err = en.Append(0xad, 0x50, 0x61, 0x72, 0x65, 0x6e, 0x74, 0x43, 0x72, 0x65, 0x61, 0x74, 0x6f, 0x72)
+	if err != nil {
+		return
+	}
+	err = en.WriteString(z.ParentCreator)
+	if err != nil {
+		err = msgp.WrapError(err, "ParentCreator")
+		return
+	}
+	// write "Creator"
+	err = en.Append(0xa7, 0x43, 0x72, 0x65, 0x61, 0x74, 0x6f, 0x72)
+	if err != nil {
+		return
+	}
+	err = en.WriteString(z.Creator)
+	if err != nil {
+		err = msgp.WrapError(err, "Creator")
+		return
+	}
+	// write "IsPublic"
+	err = en.Append(0xa8, 0x49, 0x73, 0x50, 0x75, 0x62, 0x6c, 0x69, 0x63)
+	if err != nil {
+		return
+	}
+	err = en.WriteBool(z.IsPublic)
+	if err != nil {
+		err = msgp.WrapError(err, "IsPublic")
 		return
 	}
 	// write "Created"
@@ -268,10 +316,19 @@ func (z *BucketMetadata) EncodeMsg(en *msgp.Writer) (err error) {
 // MarshalMsg implements msgp.Marshaler
 func (z *BucketMetadata) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 14
+	// map header, size 17
 	// string "Name"
-	o = append(o, 0x8e, 0xa4, 0x4e, 0x61, 0x6d, 0x65)
+	o = append(o, 0xde, 0x0, 0x11, 0xa4, 0x4e, 0x61, 0x6d, 0x65)
 	o = msgp.AppendString(o, z.Name)
+	// string "ParentCreator"
+	o = append(o, 0xad, 0x50, 0x61, 0x72, 0x65, 0x6e, 0x74, 0x43, 0x72, 0x65, 0x61, 0x74, 0x6f, 0x72)
+	o = msgp.AppendString(o, z.ParentCreator)
+	// string "Creator"
+	o = append(o, 0xa7, 0x43, 0x72, 0x65, 0x61, 0x74, 0x6f, 0x72)
+	o = msgp.AppendString(o, z.Creator)
+	// string "IsPublic"
+	o = append(o, 0xa8, 0x49, 0x73, 0x50, 0x75, 0x62, 0x6c, 0x69, 0x63)
+	o = msgp.AppendBool(o, z.IsPublic)
 	// string "Created"
 	o = append(o, 0xa7, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x64)
 	o = msgp.AppendTime(o, z.Created)
@@ -336,6 +393,24 @@ func (z *BucketMetadata) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			z.Name, bts, err = msgp.ReadStringBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "Name")
+				return
+			}
+		case "ParentCreator":
+			z.ParentCreator, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "ParentCreator")
+				return
+			}
+		case "Creator":
+			z.Creator, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Creator")
+				return
+			}
+		case "IsPublic":
+			z.IsPublic, bts, err = msgp.ReadBoolBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "IsPublic")
 				return
 			}
 		case "Created":
@@ -430,6 +505,6 @@ func (z *BucketMetadata) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *BucketMetadata) Msgsize() (s int) {
-	s = 1 + 5 + msgp.StringPrefixSize + len(z.Name) + 8 + msgp.TimeSize + 12 + msgp.BoolSize + 17 + msgp.BytesPrefixSize + len(z.PolicyConfigJSON) + 22 + msgp.BytesPrefixSize + len(z.NotificationConfigXML) + 19 + msgp.BytesPrefixSize + len(z.LifecycleConfigXML) + 20 + msgp.BytesPrefixSize + len(z.ObjectLockConfigXML) + 20 + msgp.BytesPrefixSize + len(z.VersioningConfigXML) + 20 + msgp.BytesPrefixSize + len(z.EncryptionConfigXML) + 17 + msgp.BytesPrefixSize + len(z.TaggingConfigXML) + 16 + msgp.BytesPrefixSize + len(z.QuotaConfigJSON) + 21 + msgp.BytesPrefixSize + len(z.ReplicationConfigXML) + 24 + msgp.BytesPrefixSize + len(z.BucketTargetsConfigJSON) + 28 + msgp.BytesPrefixSize + len(z.BucketTargetsConfigMetaJSON)
+	s = 3 + 5 + msgp.StringPrefixSize + len(z.Name) + 14 + msgp.StringPrefixSize + len(z.ParentCreator) + 8 + msgp.StringPrefixSize + len(z.Creator) + 9 + msgp.BoolSize + 8 + msgp.TimeSize + 12 + msgp.BoolSize + 17 + msgp.BytesPrefixSize + len(z.PolicyConfigJSON) + 22 + msgp.BytesPrefixSize + len(z.NotificationConfigXML) + 19 + msgp.BytesPrefixSize + len(z.LifecycleConfigXML) + 20 + msgp.BytesPrefixSize + len(z.ObjectLockConfigXML) + 20 + msgp.BytesPrefixSize + len(z.VersioningConfigXML) + 20 + msgp.BytesPrefixSize + len(z.EncryptionConfigXML) + 17 + msgp.BytesPrefixSize + len(z.TaggingConfigXML) + 16 + msgp.BytesPrefixSize + len(z.QuotaConfigJSON) + 21 + msgp.BytesPrefixSize + len(z.ReplicationConfigXML) + 24 + msgp.BytesPrefixSize + len(z.BucketTargetsConfigJSON) + 28 + msgp.BytesPrefixSize + len(z.BucketTargetsConfigMetaJSON)
 	return
 }
