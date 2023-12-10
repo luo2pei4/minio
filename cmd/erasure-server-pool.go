@@ -697,13 +697,13 @@ func (z *erasureServerPools) MakeBucketWithLocation(ctx context.Context, bucket 
 		meta.ObjectLockConfigXML = enabledBucketObjectLockConfig
 	}
 
-	var policyStr string
-	if opts.ParentCreator == globalActiveCred.AccessKey {
-		policyStr = bucketPrivatePolicy
-	} else {
-		policyStr = fmt.Sprintf(defaultBucketPolicy, bucket, opts.ParentCreator, bucket)
-	}
-	meta.PolicyConfigJSON = []byte(policyStr)
+	// var policyStr string
+	// if opts.ParentCreator == globalActiveCred.AccessKey {
+	// 	policyStr = bucketPrivatePolicy
+	// } else {
+	// 	policyStr = fmt.Sprintf(defaultBucketPolicy, bucket, opts.ParentCreator, bucket)
+	// }
+	meta.PolicyConfigJSON = []byte(fmt.Sprintf(defaultBucketPolicy, bucket, opts.ParentCreator, bucket))
 
 	if opts.VersioningEnabled {
 		meta.VersioningConfigXML = enabledBucketVersioningConfig
