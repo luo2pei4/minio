@@ -1577,6 +1577,9 @@ func (sys *IAMSys) IsAllowed(args iampolicy.Args) bool {
 	}
 
 	checkBucketPolicyAllowed := func(args iampolicy.Args, name string) bool {
+		if strings.HasPrefix(string(args.Action), "admin:") {
+			return true
+		}
 		if policy.Action(args.Action) == policy.CreateBucketAction {
 			return true
 		}
