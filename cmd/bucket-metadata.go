@@ -57,9 +57,17 @@ var defaultBucketPolicy = `{
                 ]
             },
             "Action": [
+				"s3:HeadBucket",
                 "s3:ListBucket",
                 "s3:ListBucketMultipartUploads",
-                "s3:GetBucketLocation"
+                "s3:GetBucketLocation",
+				"s3:GetBucketPolicy",
+				"s3:PutBucketPolicy",
+				"s3:GetBucketTagging",
+				"s3:GetBucketVersioning",
+				"s3:ListBucketVersions",
+				"s3:GetBucketObjectLockConfiguration",
+				"s3:PutLifecycleConfiguration"
             ],
             "Resource": [
                 "arn:aws:s3:::%s"
@@ -73,11 +81,13 @@ var defaultBucketPolicy = `{
                 ]
             },
             "Action": [
-                "s3:PutObject",
+				"s3:GetObject",    
+				"s3:ListMultipartUploadParts",
+				"s3:PutObject",
                 "s3:AbortMultipartUpload",
                 "s3:DeleteObject",
-                "s3:GetObject",
-                "s3:ListMultipartUploadParts"
+                "s3:GetObjectLegalHold",
+				"s3:GetObjectRetention"
             ],
             "Resource": [
                 "arn:aws:s3:::%s/*"
