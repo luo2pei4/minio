@@ -137,10 +137,12 @@ func (er erasureObjects) DeleteBucket(ctx context.Context, bucket string, opts D
 	// Collect if all disks report volume not found.
 	defer NSUpdated(bucket, slashSeparator)
 
+	// 获取单个set中的所有硬盘信息
 	storageDisks := er.getDisks()
 
 	g := errgroup.WithNErrs(len(storageDisks))
 
+	// 遍历每个硬盘，并行删除硬盘上的桶数据
 	for index := range storageDisks {
 		index := index
 		g.Go(func() error {
@@ -152,8 +154,10 @@ func (er erasureObjects) DeleteBucket(ctx context.Context, bucket string, opts D
 	}
 
 	// Wait for all the delete vols to finish.
+	// 获取每块盘上桶删除操作的异常
 	dErrs := g.Wait()
 
+	// 如果指定了强制删除，但set中任一一块盘删除桶发生异常时，做undo操作并返回删除时产生的异常
 	if opts.Force {
 		for _, err := range dErrs {
 			if err != nil {
@@ -165,15 +169,21 @@ func (er erasureObjects) DeleteBucket(ctx context.Context, bucket string, opts D
 		return nil
 	}
 
+	// 判断删桶操作时产生的异常数量是否超过写仲裁数
+	// 如果超过写仲裁数，做undo操作
 	err := reduceWriteQuorumErrs(ctx, dErrs, bucketOpIgnoredErrs, er.defaultWQuorum())
 	if err == errErasureWriteQuorum && !opts.NoRecreate {
 		undoDeleteBucket(storageDisks, bucket)
 	}
 
+	// 删桶操作产生的异常未超过写仲裁数，或在当前set中没有找到要删除的桶
 	if err == nil || errors.Is(err, errVolumeNotFound) {
 		var purgedDangling bool
 		// At this point we have `err == nil` but some errors might be `errVolumeNotEmpty`
 		// we should proceed to attempt a force delete of such buckets.
+		// 删桶操作返回的所有异常信息虽然通过reduceWriteQuorumErrs函数被判断为成功删除或无法找到要删除的桶
+		// 但是在返回的异常情况中可能存在桶里有数据所以无法删除的异常
+		// 针对这种异常，需要将这些桶目录通过rename的方式放入垃圾筒中
 		for index, err := range dErrs {
 			if err == errVolumeNotEmpty && storageDisks[index] != nil {
 				storageDisks[index].RenameFile(ctx, bucket, "", minioMetaTmpDeletedBucket, mustGetUUID())

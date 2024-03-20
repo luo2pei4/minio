@@ -804,8 +804,12 @@ func (s *xlStorage) StatVol(ctx context.Context, volume string) (vol VolInfo, er
 }
 
 // DeleteVol - delete a volume.
+//
+//	拼装桶目录的路径并删除桶目录
+//	如果制定了强制删除的场合，删除桶目录和目录下的所有数据
 func (s *xlStorage) DeleteVol(ctx context.Context, volume string, forceDelete bool) (err error) {
 	// Verify if volume is valid and it exists.
+	// 拼装桶的路径
 	volumeDir, err := s.getVolDir(volume)
 	if err != nil {
 		return err
@@ -814,6 +818,7 @@ func (s *xlStorage) DeleteVol(ctx context.Context, volume string, forceDelete bo
 	if forceDelete {
 		err = s.moveToTrash(volumeDir, true)
 	} else {
+		// 没有指定强制删除的场合，删除桶的目录
 		err = Remove(volumeDir)
 	}
 
@@ -821,11 +826,11 @@ func (s *xlStorage) DeleteVol(ctx context.Context, volume string, forceDelete bo
 		switch {
 		case errors.Is(err, errFileNotFound):
 			return errVolumeNotFound
-		case osIsNotExist(err):
+		case osIsNotExist(err): // 桶的目录不存在的场合，返回该异常
 			return errVolumeNotFound
-		case isSysErrNotEmpty(err):
+		case isSysErrNotEmpty(err): // 桶的目录中有文件的场合，返回该异常
 			return errVolumeNotEmpty
-		case osIsPermission(err):
+		case osIsPermission(err): // 桶目录访问被拒的场合，返回该异常
 			return errDiskAccessDenied
 		case isSysErrIO(err):
 			return errFaultyDisk

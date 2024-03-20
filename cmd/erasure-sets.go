@@ -324,8 +324,9 @@ func (s *erasureSets) monitorAndConnectEndpoints(ctx context.Context, monitorInt
 }
 
 // GetLockers 传入set索引，通过copy方式返回指定set的所保有的locker的切片
-//  set跨几个节点就有几个locker，locker分local和dist两种。
-//  实际上是将set所保有的locker的指针拷贝到新的切片里面并返回该切片
+//
+//	set跨几个节点就有几个locker，locker分local和dist两种。
+//	实际上是将set所保有的locker的指针拷贝到新的切片里面并返回该切片
 func (s *erasureSets) GetLockers(setIndex int) func() ([]dsync.NetLocker, string) {
 	return func() ([]dsync.NetLocker, string) {
 		lockers := make([]dsync.NetLocker, len(s.erasureLockers[setIndex]))
@@ -885,14 +886,16 @@ func (s *erasureSets) IsTaggingSupported() bool {
 // DeleteBucket - deletes a bucket on all sets simultaneously,
 // even if one of the sets fail to delete buckets, we proceed to
 // undo a successful operation.
+// 删除单个pool中桶
 func (s *erasureSets) DeleteBucket(ctx context.Context, bucket string, opts DeleteBucketOptions) error {
 	g := errgroup.WithNErrs(len(s.sets))
 
 	// Delete buckets in parallel across all sets.
+	// 遍历所有set，按set删除桶目录
 	for index := range s.sets {
 		index := index
 		g.Go(func() error {
-			return s.sets[index].DeleteBucket(ctx, bucket, opts)
+			return s.sets[index].DeleteBucket(ctx, bucket, opts) // 删除单个set中的桶
 		}, index)
 	}
 

@@ -217,10 +217,12 @@ func listAllBuckets(ctx context.Context, storageDisks []StorageAPI, healBuckets 
 				// we ignore disk not found errors
 				return nil
 			}
+			// 获取每块磁盘下的目录
 			volsInfo, err := storageDisks[index].ListVols(ctx)
 			if err != nil {
 				return err
 			}
+			// 遍历每个目录
 			for _, volInfo := range volsInfo {
 				// StorageAPI can send volume names which are
 				// incompatible with buckets - these are
