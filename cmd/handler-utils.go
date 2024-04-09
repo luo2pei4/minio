@@ -402,6 +402,7 @@ func collectAPIStats(api string, f http.HandlerFunc) http.HandlerFunc {
 
 		f.ServeHTTP(statsWriter, r)
 
+		// 在请求处理结束之后再更新统计数据
 		globalHTTPStats.updateStats(api, r, statsWriter)
 	}
 }
